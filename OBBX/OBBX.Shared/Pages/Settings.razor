@@ -1,0 +1,112 @@
+@page "/settings"
+@using OBBX.Shared.Models
+@using OBBX.Shared.Services
+@inject SettingsService AppSettings
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Settings</MudText>
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudCard>
+                <MudText Typo="Typo.h6" Class="pa-4">Challonge Settings</MudText>
+                <MudCardContent>
+                    <MudTextField @bind-value="_settings.Challonge.ApiKey" Label="API Key" Variant="Variant.Outlined" FullWidth="true"
+                        Adornment="Adornment.End" AdornmentIcon="@_apiKeyInputIcon"
+                        OnAdornmentClick="ToggleApiKeyVisibility" AdornmentAriaLabel="Show API Key" InputType="@_apiKeyInput" />
+                    <MudTextField @bind-value="_settings.Challonge.Username" Label="Username" Variant="Variant.Outlined" FullWidth="true"
+                        Class="mt-4" />
+                    <MudTextField @bind-value="_settings.Challonge.Uri" Label="URL" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
+                    <MudTextField @bind-value="_settings.Challonge.RefreshIntervalSeconds" T="int" Label="Refresh Interval (seconds)" Variant="Variant.Outlined" FullWidth="true"
+                        Class="mt-4" />
+                </MudCardContent>
+            </MudCard>
+
+
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudCard>
+                <MudText Typo="Typo.h6" Class="pa-4">OBS Websocket Settings</MudText>
+                <MudCardContent>
+                    <MudTextField @bind-value="_settings.OBSWebSocket.Address" Label="Address" Variant="Variant.Outlined" FullWidth="true" />
+                    <MudTextField @bind-value="_settings.OBSWebSocket.Port" T="int" Label="Port" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
+                    <MudTextField @bind-value="_settings.OBSWebSocket.Key" T="string" Label="Server Password" Variant="Variant.Outlined" FullWidth="true"
+                        Class="mt-4" Adornment="Adornment.End" AdornmentIcon="@_passwordInputIcon"
+                        OnAdornmentClick="TogglePasswordVisibility" AdornmentAriaLabel="Show Password"
+                        InputType="@_passwordInput" />
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12">
+            <MudCard>
+                <MudText Typo="Typo.h6" Class="pa-4">CSV Blader Data Import</MudText>
+                <MudCardContent>
+                    <!-- Placeholder for future CSV import settings from file diectory -->
+                    <MudText Typo="Typo.body2">Import player data from a CSV file located in a specified directory.
+                        This feature will allow you to easily manage and update player information for your tournaments.
+                    </MudText>
+                </MudCardContent>
+
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="SaveSettings" Disabled="@_isSaving">
+        @if (_isSaving)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+        }
+        Save Settings
+    </MudButton>
+</MudContainer>
+
+@code {
+    private AppSettings _settings = new();
+    private bool _isSaving;
+    private bool _isShowPassword;
+    private bool _isShowApiKey;
+    private InputType _passwordInput = InputType.Password;
+    private InputType _apiKeyInput = InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+    private string _apiKeyInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await AppSettings.LoadAsync();
+    }
+
+    private async Task SaveSettings()
+    {
+        _isSaving = true;
+        try
+        {
+            await AppSettings.SaveAsync(_settings);
+            Snackbar.Add("Settings Saved Successfully", Severity.Success);
+        }
+        catch(Exception ex)
+        {
+            Snackbar.Add($"Error Saving Settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        _isShowPassword = !_isShowPassword;
+        _passwordInput = _isShowPassword ? InputType.Text : InputType.Password;
+        _passwordInputIcon = _isShowPassword
+        ? Icons.Material.Filled.Visibility
+        : Icons.Material.Filled.VisibilityOff;
+    }
+
+    private void ToggleApiKeyVisibility()
+    {
+        _isShowApiKey = !_isShowApiKey;
+        _apiKeyInput = _isShowApiKey ? InputType.Text : InputType.Password;
+        _apiKeyInputIcon = _isShowApiKey
+        ? Icons.Material.Filled.Visibility
+        : Icons.Material.Filled.VisibilityOff;
+    }
+}
