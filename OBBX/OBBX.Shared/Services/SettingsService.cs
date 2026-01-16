@@ -7,6 +7,7 @@ namespace OBBX.Shared.Services;
 public class SettingsService
 {
     private readonly string _settingsPath;
+    private AppSettings? _cachedSettings;
     private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
     {
         WriteIndented = true
@@ -44,5 +45,23 @@ public class SettingsService
     {
         var json = JsonSerializer.Serialize(settings, _jsonOptions);
         await File.WriteAllTextAsync(_settingsPath, json);
+    }
+
+    public async Task<AppSettings> GetSettingsAsync()
+    {
+        if (_cachedSettings != null)
+        {
+            return _cachedSettings;
+        }
+
+        _cachedSettings = await LoadAsync();
+        return _cachedSettings;
+    }
+
+    // Force reload from file
+        public async Task<AppSettings> ReloadSettingsAsync()
+    {
+        _cachedSettings = await LoadAsync();
+        return _cachedSettings;
     }
 }

@@ -11,13 +11,13 @@
             <MudCard>
                 <MudText Typo="Typo.h6" Class="pa-4">Challonge Settings</MudText>
                 <MudCardContent>
-                    <MudTextField @bind-value="_settings.Challonge.ApiKey" Label="API Key" Variant="Variant.Outlined" FullWidth="true"
+                    <MudTextField @bind-Value="_settings.Challonge.ApiKey" Label="API Key" Variant="Variant.Outlined" FullWidth="true"
                         Adornment="Adornment.End" AdornmentIcon="@_apiKeyInputIcon"
                         OnAdornmentClick="ToggleApiKeyVisibility" AdornmentAriaLabel="Show API Key" InputType="@_apiKeyInput" />
-                    <MudTextField @bind-value="_settings.Challonge.Username" Label="Username" Variant="Variant.Outlined" FullWidth="true"
+                    <MudTextField @bind-Value="_settings.Challonge.Username" Label="Username" Variant="Variant.Outlined" FullWidth="true"
                         Class="mt-4" />
-                    <MudTextField @bind-value="_settings.Challonge.Uri" Label="URL" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
-                    <MudTextField @bind-value="_settings.Challonge.RefreshIntervalSeconds" T="int" Label="Refresh Interval (seconds)" Variant="Variant.Outlined" FullWidth="true"
+                    <MudTextField @bind-Value="_settings.Challonge.Uri" Label="URL" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
+                    <MudTextField @bind-Value="_settings.Challonge.RefreshIntervalSeconds" T="int" Label="Refresh Interval (seconds)" Variant="Variant.Outlined" FullWidth="true"
                         Class="mt-4" />
                 </MudCardContent>
             </MudCard>
@@ -28,9 +28,9 @@
             <MudCard>
                 <MudText Typo="Typo.h6" Class="pa-4">OBS Websocket Settings</MudText>
                 <MudCardContent>
-                    <MudTextField @bind-value="_settings.OBSWebSocket.Address" Label="Address" Variant="Variant.Outlined" FullWidth="true" />
-                    <MudTextField @bind-value="_settings.OBSWebSocket.Port" T="int" Label="Port" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
-                    <MudTextField @bind-value="_settings.OBSWebSocket.Key" T="string" Label="Server Password" Variant="Variant.Outlined" FullWidth="true"
+                    <MudTextField @bind-Value="_settings.OBSWebSocket.Address" Label="Address" Variant="Variant.Outlined" FullWidth="true" />
+                    <MudTextField @bind-Value="_settings.OBSWebSocket.Port" T="int" Label="Port" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
+                    <MudTextField @bind-Value="_settings.OBSWebSocket.Key" T="string" Label="Server Password" Variant="Variant.Outlined" FullWidth="true"
                         Class="mt-4" Adornment="Adornment.End" AdornmentIcon="@_passwordInputIcon"
                         OnAdornmentClick="TogglePasswordVisibility" AdornmentAriaLabel="Show Password"
                         InputType="@_passwordInput" />
@@ -50,11 +50,8 @@
             </MudCard>
         </MudItem>
     </MudGrid>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="SaveSettings" Disabled="@_isSaving">
-        @if (_isSaving)
-        {
-            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-        }
+       <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" 
+        OnClick="@SaveSettings" Disabled="@_isSaving" ButtonType="ButtonType.Button">
         Save Settings
     </MudButton>
 </MudContainer>
@@ -71,12 +68,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _settings = await AppSettings.LoadAsync();
+        _settings = await AppSettings.GetSettingsAsync();
     }
 
     private async Task SaveSettings()
     {
-        _isSaving = true;
+        Console.WriteLine("SaveSettings called!"); // Check browser console or terminal
+         _isSaving = true;
+        StateHasChanged(); // Force UI update
         try
         {
             await AppSettings.SaveAsync(_settings);
@@ -84,12 +83,14 @@
         }
         catch(Exception ex)
         {
+            Console.WriteLine($"Error: {ex.Message}");
             Snackbar.Add($"Error Saving Settings: {ex.Message}", Severity.Error);
         }
         finally
         {
             _isSaving = false;
-        }
+            StateHasChanged();
+        } 
     }
 
     private void TogglePasswordVisibility()

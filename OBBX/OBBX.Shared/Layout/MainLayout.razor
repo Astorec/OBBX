@@ -1,28 +1,40 @@
 ﻿@inherits LayoutComponentBase
 
-<MudThemeProvider />
+<MudThemeProvider theme="_theme" IsDarkMode="true" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudButton Href="/" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AutoAwesomeMosaic">Dashboard
+        </MudButton>
+        <MudButton Href="/tables" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.HotTub">Tables</MudButton>
+        <MudButton Href="/settings" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Settings">Settings
+        </MudButton>
+    </MudAppBar>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+    <MudMainContent Class="pt-16 pa-4">
+        @Body
+    </MudMainContent>
+</MudLayout>
 
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
-
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>
+@code {
+    private MudTheme _theme = new MudTheme
+    {
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#c6ff00",
+            Secondary = "#ffffff",
+            Background = "#0a0a0a",
+            Surface = "#1a1a1a",
+            AppbarBackground = "#0a0a0a",
+            AppbarText = "#ffffff",
+            TextPrimary = "#ffffff",
+            TextSecondary = "#b0b0b0",
+            ActionDefault = "#c6ff00",
+            DrawerBackground = "#0a0a0a",
+            DrawerText = "#ffffff"
+        }
+    };
+}
