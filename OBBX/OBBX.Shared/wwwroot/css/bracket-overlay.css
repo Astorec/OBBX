@@ -1,0 +1,416 @@
+/* Shared styles for bracket overlays */
+:root {
+    /* Match MudTheme dark palette from MainLayout */
+    --bracket-bg: rgba(10, 10, 10, 0.95);      /* Background */
+    --bracket-surface: rgba(26, 26, 26, 0.98); /* Surface */
+    --bracket-border: #c6ff00;                 /* Primary */
+    --bracket-accent: #c6ff00;                 /* Primary accent */
+    --bracket-text: #ffffff;                   /* TextPrimary */
+    --bracket-text-muted: #b0b0b0;             /* TextSecondary */
+    --match-bg: rgba(26, 26, 26, 0.98);
+    --match-winner: #c6ff00;
+    --match-loser: #666666;
+}
+
+html, body {
+    background: rgba(10, 10, 10, 0.95); 
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.bracket-container {
+    padding: 20px;
+    overflow-x: auto;
+    overflow-y: auto;
+    color: var(--bracket-text);
+    font-size: 12px;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+/* Swiss/Grid Layout */
+.swiss-bracket {
+    display: flex;
+    gap: 8px;
+}
+
+.swiss-round {
+    min-width: 200px;
+    background: var(--bracket-surface);
+    border: 1px solid rgba(198, 255, 0, 0.4);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.swiss-round-header {
+    background: linear-gradient(90deg, var(--bracket-accent) 0%, #8fd400 100%);
+    color: #000;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 6px 12px;
+    text-align: center;
+}
+
+.swiss-match {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    min-height: 24px;
+}
+
+.swiss-match:last-child {
+    border-bottom: none;
+}
+
+.swiss-match.winner {
+    background: rgba(198, 255, 0, 0.14);
+}
+
+.swiss-player {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0; /* allow ellipsis on long names */
+    font-weight: 500;
+}
+
+.swiss-name {
+    flex: 1;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+}
+
+.swiss-player.winner {
+    color: var(--match-winner);
+    font-weight: bold;
+}
+
+.swiss-player.loser {
+    color: var(--match-loser);
+}
+
+.swiss-seed {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-size: 9px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.swiss-score {
+    font-weight: bold;
+    min-width: 26px;
+    text-align: center;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.16); /* neutral off-white */
+    color: var(--bracket-text);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+/* Swiss tables list under each round */
+.swiss-tables-header {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--bracket-text-muted);
+    padding: 0 8px 5px, 8px;
+}
+
+.swiss-tables-list {
+    padding: 0 6px 6px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.swiss-table-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--bracket-text);
+}
+
+.swiss-table-label {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-weight: 600;
+    color: var(--bracket-text-muted);
+}
+
+.swiss-table-names {
+    flex: 1;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+}
+
+.swiss-table-score {
+    font-weight: 600;
+    color: var(--match-winner);
+}
+
+/* Score color based on winner/loser */
+.swiss-player.winner + .swiss-score {
+    background: var(--match-winner);
+    color: rgba(10, 10, 10, 0.95); 
+}
+
+.swiss-player.loser + .swiss-score {
+    background: rgba(120, 120, 120, 0.9);
+    color: #fff;
+}
+
+/* Elimination Bracket Styles */
+.elim-bracket {
+    display: flex;
+    gap: 60px;
+    align-items: flex-start;
+}
+
+.elim-round {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+}
+
+.elim-finals-round {
+    position: relative;
+}
+
+.elim-third-place-wrapper {
+    margin-top: 200px;
+}
+
+.elim-round-header {
+    color: var(--bracket-accent);
+    font-size: 11px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.elim-match {
+    background: var(--match-bg);
+    border: 1px solid rgba(198, 255, 0, 0.2);
+    border-radius: 4px;
+    min-width: 180px;
+    position: relative;
+    z-index: 1;
+}
+
+.elim-match.complete {
+    border-color: var(--bracket-accent);
+}
+
+.elim-player {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+}
+
+.elim-player:last-child {
+    border-bottom: none;
+}
+
+.elim-player.winner {
+    background: rgba(198, 255, 0, 0.12);
+    color: var(--match-winner);
+}
+
+.elim-player-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.elim-seed {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--bracket-text-muted);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.elim-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.elim-score {
+    font-weight: bold;
+    min-width: 24px;
+    text-align: right;
+}
+
+/* Double Elimination specific */
+.double-elim {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.bracket-section {
+    position: relative;
+}
+
+.bracket-section-label {
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    color: var(--bracket-accent);
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    white-space: nowrap;
+}
+
+.winners-bracket {
+    border-left: 2px solid var(--bracket-accent);
+    padding-left: 30px;
+}
+
+.losers-bracket {
+    border-left: 2px solid #cc4400;
+    padding-left: 30px;
+}
+
+.losers-bracket .elim-match.complete {
+    border-color: #cc4400;
+}
+
+/* Round Robin Standings */
+.rr-standings {
+    background: var(--bracket-surface);
+    border: 1px solid rgba(198, 255, 0, 0.4);
+    border-radius: 6px;
+    overflow: hidden;
+    min-width: 300px;
+}
+
+.rr-header {
+    background: linear-gradient(90deg, var(--bracket-accent) 0%, #8fd400 100%);
+    color: rgba(10, 10, 10, 0.95);
+    font-weight: bold;
+    font-size: 12px;
+    padding: 8px 12px;
+    text-align: center;
+}
+
+.rr-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.rr-table th,
+.rr-table td {
+    padding: 6px 10px;
+    text-align: left;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rr-table th {
+    color: var(--bracket-text-muted);
+    font-weight: normal;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 1px;
+}
+
+.rr-table tr:last-child td {
+    border-bottom: none;
+}
+
+.rr-rank {
+    color: var(--bracket-accent);
+    font-weight: bold;
+    width: 30px;
+}
+
+.rr-name {
+    flex: 1;
+}
+
+.rr-record {
+    text-align: center;
+    font-weight: bold;
+}
+
+.rr-points {
+    text-align: right;
+    color: var(--match-winner);
+    font-weight: bold;
+}
+
+/* Groups Layout */
+.groups-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.group-card {
+    background: var(--bracket-surface);
+    border: 1px solid rgba(198, 255, 0, 0.4);
+    border-radius: 6px;
+    overflow: hidden;
+    min-width: 250px;
+    max-width: 350px;
+}
+
+.group-header {
+    background: linear-gradient(90deg, var(--bracket-accent) 0%, #8fd400 100%);
+    color: rgba(10, 10, 10, 0.95);
+    font-weight: bold;
+    font-size: 11px;
+    padding: 6px 12px;
+    text-align: center;
+}
+
+/* Compact mode for large brackets */
+.bracket-compact .swiss-match {
+    padding: 2px 6px;
+    font-size: 10px;
+}
+
+.bracket-compact .elim-player {
+    padding: 4px 8px;
+    font-size: 10px;
+}
+
+.bracket-compact .elim-match {
+    min-width: 150px;
+}
+
+/* Scrollable bracket wrapper */
+.bracket-scroll-wrapper {
+    max-height: 90vh;
+    overflow: auto;
+}

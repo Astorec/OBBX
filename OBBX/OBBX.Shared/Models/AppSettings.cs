@@ -5,7 +5,7 @@ public class AppSettings
     public ChallongeSettings Challonge {get; set;} = new ChallongeSettings();
     public OBSWebSocketSettings OBSWebSocket {get; set;} = new OBSWebSocketSettings();
     public CsvImportSettings CsvImport {get; set;} = new CsvImportSettings();
-    
+    public TableSettings Tables {get; set;} = new TableSettings();
 }
 
 public class ChallongeSettings
@@ -26,4 +26,11 @@ public class OBSWebSocketSettings
 public class CsvImportSettings
 {
     public string? LastImportPath {get; set;} = string.Empty;
+}
+
+public class TableSettings
+{
+    public int TableCount {get; set;} = 4;
+    public int LiveFeedTableNumber {get; set;} = 1;
+    public bool UseChallongeForTables{get; set;} = false;
 }

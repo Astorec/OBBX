@@ -1,0 +1,232 @@
+@page "/overlay/tables"
+@using OBBX.Shared.Models
+@using System.Text.RegularExpressions
+@using System.Linq
+@using System.Net.Security
+@inject MatchStateService MatchState
+@inject SettingsService AppSettings
+<div class="obs-overlay-container">
+    @if (!_isLoaded)
+    {
+        <div class="status-message">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            <MudText Typo="Typo.h4" Class="mt-4">Loading Tables...</MudText>
+        </div>
+    }
+    else if (_assignedTables.Count == 0)
+    {
+        <div class="status-message">
+            <MudText Typo="Typo.h3" Style="color: var(--mud-palette-text-secondary);">No Table Assignments Found</MudText>
+        </div>
+    }
+    else
+    {
+        @* MudGrid with Spacing 2 to provide clean gutters between tables *@
+        <MudGrid Spacing="2" Class="tables-grid">
+            @foreach (var tableGroup in _assignedTables.OrderBy(t => t.Key))
+            {
+                var tableNumber = tableGroup.Key;
+                var matches = tableGroup.Value;
+
+                @* xs="6" creates the 2x2 look (50% width each) *@
+                <MudItem xs="6">
+                    <MudPaper Elevation="0" Class="table-assignment-card">
+                        @* Header for the Table *@
+                        <div class="table-card-header">
+                            <MudText Typo="Typo.h4">TABLE @tableNumber</MudText>
+                        </div>
+
+                        <div class="matches-content">
+                            @foreach (var match in matches)
+                            {
+                                <div class="match-row">
+                                    <div class="player-box">
+                                        <MudText Typo="Typo.h5" Class="player-name">@(match.Player1Name ?? "TBD")</MudText>
+                                    </div>
+                                    
+                                    <div class="vs-divider">
+                                        <div class="line"></div>
+                                        <MudText Typo="Typo.button" Class="vs-text">VS</MudText>
+                                        <div class="line"></div>
+                                    </div>
+
+                                    <div class="player-box">
+                                        <MudText Typo="Typo.h5" Class="player-name">@(match.Player2Name ?? "TBD")</MudText>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</div>
+
+<style>
+    /* 1. Root OBS Canvas - Force 16:9 and hide scrollbars */
+    .obs-overlay-container {
+        width: 100vw;
+        height: 100vh;
+        background-color: var(--mud-palette-background); /* #0a0a0a */
+        padding: 4vh;
+        overflow: hidden !important;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .status-message {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--mud-palette-primary);
+    }
+
+    .tables-grid {
+        height: 100%;
+        align-content: stretch;
+    }
+
+    /* 2. Table Card Styling */
+    .table-assignment-card {
+        background-color: var(--mud-palette-surface) !important; /* #1a1a1a */
+        border: 2px solid rgba(198, 255, 0, 0.1);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s ease;
+    }
+
+    .table-card-header {
+        background-color: var(--mud-palette-primary); /* #c6ff00 */
+        color: #000; /* Black text on lime header */
+        padding: 1vh;
+        text-align: center;
+        font-weight: 900;
+    }
+
+    .matches-content {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 2vh;
+    }
+
+    /* 3. Match Layout */
+    .match-row {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1vh;
+    }
+
+    .player-box {
+        text-align: center;
+        width: 100%;
+    }
+
+    .player-name {
+        text-transform: uppercase;
+        font-weight: 800;
+        letter-spacing: 2px;
+        color: var(--mud-palette-text-primary);
+        font-size: 3.5vh; /* Large text for OBS visibility */
+    }
+
+    .vs-divider {
+        display: flex;
+        align-items: center;
+        width: 60%;
+        gap: 15px;
+    }
+
+    .line {
+        flex-grow: 1;
+        height: 2px;
+        background: var(--mud-palette-primary);
+        opacity: 0.3;
+    }
+
+    .vs-text {
+        color: var(--mud-palette-primary);
+        font-weight: 900;
+        font-size: 2vh;
+    }
+
+    /* Standardizes scrollbar removal across browsers */
+    ::-webkit-scrollbar {
+        display: none;
+    }
+</style>
+
+    @code {
+    private Dictionary<int, List<TournamentMatch>> _assignedTables = new();
+    CancellationTokenSource _cts = new();
+    private bool _isLoaded = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cts = new CancellationTokenSource();
+        // Subscribe to events BEFORE loading data so we catch the MatchesUpdated event from initialization
+        MatchState.TableAssignmentChanged += OnTableAssignmentChanged;
+        MatchState.MatchesUpdated += OnMatchesUpdated;
+            await LoadBracketData();
+    }
+    
+    private async Task LoadBracketData()
+    {
+        try
+        {
+            var settings = await AppSettings.GetSettingsAsync();
+
+            if (!string.IsNullOrEmpty(settings.Challonge?.Uri))
+            {
+                if (!MatchState.IsInitialized)
+                {
+                    await MatchState.InitializeAsync(settings.Challonge.Uri);
+                }
+
+                RefreshLocalData();
+                _isLoaded = true;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch
+        {
+            _isLoaded = true; // Show "no data" message
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void RefreshLocalData()
+    {
+        // Clear old data first
+        _assignedTables.Clear();
+        
+        if (MatchState.GetMatches != null)
+        {
+            // Get matches where we have a table assignment
+            _assignedTables = MatchState.GetMatches()
+                .Where(m => m.TableNumber > 0)
+                .GroupBy(m => m.TableNumber)
+                .ToDictionary(g => g.Key, g => g.ToList());
+        }
+    }
+
+    private void OnTableAssignmentChanged(object? sender, TableAssignmentChangedEventArgs e)
+    {
+        // Refresh so updated table numbers are reflected in overlays
+        RefreshLocalData();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnMatchesUpdated(object? sender, MatchesUpdatedEventArgs e)
+    {
+        // Refresh when matches are updated (e.g., from refresh)
+        RefreshLocalData();
+        InvokeAsync(StateHasChanged);
+    }
+}

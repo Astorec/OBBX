@@ -1,6 +1,12 @@
-﻿<Router AppAssembly="typeof(Layout.MainLayout).Assembly">
+﻿<Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="new[] { typeof(OBBX.Shared.Pages.Dashboard).Assembly }">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <RouteView RouteData="routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
+            <MudText Typo="Typo.h4" Color="Color.Error">Page not found</MudText>
+            <MudText>The page you requested could not be found.</MudText>
+        </LayoutView>
+    </NotFound>
 </Router>

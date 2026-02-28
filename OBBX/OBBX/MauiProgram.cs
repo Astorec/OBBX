@@ -19,6 +19,11 @@ public static class MauiProgram
 
         // Add device-specific services used by the OBBX.Shared project
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
+        
+        // Add shared services
+        builder.Services.AddSingleton<SettingsService>();
+        builder.Services.AddSingleton<ChallongeService>();
+        builder.Services.AddSingleton<MatchStateService>();
 
         builder.Services.AddMauiBlazorWebView();
         builder.Services.AddMudServices();

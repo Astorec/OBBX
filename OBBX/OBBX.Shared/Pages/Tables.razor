@@ -1,5 +1,140 @@
 @page "/tables"
-@using OBBX.Shared.Models
-@using OBBX.Shared.Services
-@inject SettingsService AppSettings
-@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+@using OBBX.Shared.ViewModels
+@inject TablesViewModel VM
+@implements IDisposable
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudCard>
+            <MudCardContent Class="d-flex justify-space-between align-center">
+                <MudText Typo="Typo.h2">Tables</MudText>
+                <MudStack Row="true" Spacing="2">
+                    @if (VM.TableSyncEnabled)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="VM.SyncStationsAsync"
+                                   Disabled="VM.IsLoading || VM.IsSyncingStations">
+                            @if (VM.IsSyncingStations)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            }
+                            Sync Stations
+                        </MudButton>
+                    }
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="VM.LoadMatchesAsync"
+                               Disabled="VM.IsLoading">
+                        @if (VM.IsLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Refresh Matches
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="VM.OpenTableSettingsAsync">
+                        Settings
+                    </MudButton>
+                </MudStack>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+<MudDropContainer T="TournamentMatch" Items="VM.Matches.Where(m => m.IsPlayable)"
+                  ItemsSelector="@((item, zone) => VM.GetZoneForMatch(item) == zone)" ItemDropped="VM.OnItemDroppedAsync"
+                  Class="d-flex flex-wrap flex-grow-1">
+    <ChildContent>
+        <MudGrid>
+            <!-- Available Matches Panel -->
+            <MudItem xs="4">
+                <MudCard Style="height: 80vh; overflow-y: auto;">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h5" Class="mb-2">Available Matches</MudText>
+                        <MudTextField @bind-Value="VM.SearchTerm" Label="Search Matches" Variant="Variant.Outlined"
+                                      Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Class="mb-3" />
+                        <MudDropZone T="TournamentMatch" Identifier="available" Class="mud-height-full"
+                                     AllowReorder="true" CanDrop="@((item) => true)">
+                        </MudDropZone>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <!-- Active Tables Panel -->
+            <MudItem xs="8">
+                <MudCard Style="height: 80vh; overflow-y: auto;">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h5" Class="mb-3">Active Tables - Drag matches here</MudText>
+
+                        <MudGrid>
+                            @for (int i = 1; i <= VM.TableCount; i++)
+                            {
+                                var tableNum = i;
+                                var isLiveFeed = tableNum == VM.LiveFeedTableNumber;
+                                <MudItem xs="6" md="4">
+                                    <MudPaper Elevation="@(isLiveFeed ? 4 : 3)"
+                                              Class="@(isLiveFeed ? "pa-2 mud-border-2 mud-border-primary" : "pa-2")"
+                                              Style="min-height: 120px;">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween"
+                                                  Class="mb-2">
+                                            <MudText Typo="Typo.h6">Table @tableNum</MudText>
+                                            @if (isLiveFeed)
+                                            {
+                                                <MudChip T="string" Color="Color.Error" Size="Size.Small">🔴 LIVE</MudChip>
+                                            }
+                                        </MudStack>
+                                        <MudDropZone T="TournamentMatch" Identifier="@($"table-{tableNum}")"
+                                                     Class="mud-height-full rounded-lg border-2 border-dashed mud-border-lines-default pa-2"
+                                                     AllowReorder="true" CanDrop="@((item) => true)"
+                                                     CanDropClass="mud-border-primary" NoDropClass="mud-border-error">
+                                        </MudDropZone>
+                                    </MudPaper>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    </ChildContent>
+
+    <ItemRenderer>
+        <MudPaper Class="pa-3 my-1" Elevation="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.body1">
+                        <strong>@(context.Player1Name ?? "TBD")</strong> vs <strong>@(context.Player2Name ??
+                                                                                                                                                                                                                                                                                                    "TBD")</strong>
+                    </MudText>
+                    <MudStack Row="true" Spacing="2">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Round @context.Round</MudText>
+                        @if (!string.IsNullOrEmpty(context.Identifier))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">• @context.Identifier</MudText>
+                        }
+                        <MudChip T="string" Size="Size.Small" Color="@VM.GetStateColor(context.State)">@context.State
+                        </MudChip>
+                    </MudStack>
+                </MudStack>
+                @if (context.HasTableAssigned)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                   OnClick="@(async () => await VM.ClearTableAsync(context.MatchId))" />
+                }
+            </MudStack>
+        </MudPaper>
+    </ItemRenderer>
+</MudDropContainer>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        VM.OnChanged += () => InvokeAsync(StateHasChanged);
+        await VM.InitializeAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await VM.LoadMatchesAsync();
+    }
+
+    public void Dispose() => VM.Dispose();
+}

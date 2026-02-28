@@ -1,0 +1,74 @@
+@using OBBX.Shared.Models
+@using OBBX.Shared.Services
+@inject ISnackbar Snackbar
+@inject JsConsole JsConsole
+@inject SettingsService AppSettings
+
+<!-- Dialog displayed when user clicks "Settings" on the Tables page -->
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">Table Settings</MudText>
+        <MudText Type="Typo.body2" Class="mb-4">Toggle table synchronization with Challonge</MudText>
+        <MudSwitch T="bool" @bind-Value="_tableSyncEnabled" Label="Use Challonge for Table Assignments" Color="Color.Primary" UncheckedColor="Color.Error" />
+
+        <MudText Typo="Typo.body2" Class="mb-4">Configure how tables are displayed on the stream.</MudText>
+
+        <MudStack Spacing="3">
+            <MudNumericField @bind-Value="_tableCount" Label="Number of Tables" Min="1" Max="20" />
+            
+            <MudSelect @bind-Value="_liveFeedTableNumber" Label="Live Feed Table">
+                @for (int i = 1; i <= _tableCount; i++)
+                {
+                    var tableNumber = i;
+                    <MudSelectItem Value="@tableNumber">Table @tableNumber</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@SaveSettings" Variant="Variant.Filled" Color="Color.Primary">Save</MudButton>
+        <MudButton OnClick="@Cancel" Variant="Variant.Outlined" Color="Color.Secondary">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+    private int _tableCount = 4;
+    private int _liveFeedTableNumber = 1;
+    private bool _tableSyncEnabled = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settings = await AppSettings.GetSettingsAsync();
+        _tableCount = settings.Tables?.TableCount ?? 4;
+        _liveFeedTableNumber = settings.Tables?.LiveFeedTableNumber ?? 1;
+        _tableSyncEnabled = settings.Tables?.UseChallongeForTables ?? false;
+    }
+
+    private async Task SaveSettings()
+    {
+        try
+        {
+            
+            var settings = await AppSettings.GetSettingsAsync();
+            settings.Tables.TableCount = _tableCount;
+            settings.Tables.LiveFeedTableNumber = _liveFeedTableNumber;
+            settings.Tables.UseChallongeForTables = _tableSyncEnabled;
+            await AppSettings.SaveAsync(settings);
+            
+            Snackbar.Add("Settings saved!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving settings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

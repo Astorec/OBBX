@@ -27,24 +27,41 @@ public class SettingsService
     {
         if (!File.Exists(_settingsPath))
         {
-            return new AppSettings();
+            var defaultSettings = new AppSettings();
+            await SaveAsync(defaultSettings);
+            return defaultSettings;
         }
 
         try
         {
             var json = await File.ReadAllTextAsync(_settingsPath);
-            return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions);
+
+            // Return deserialized settings, or a new instance if deserialization results in null
+            return settings ?? new AppSettings();
         }
-        catch
+        catch(Exception ex)
         {
+            Console.WriteLine($"Error loading settings: {ex.Message}");
             return new AppSettings();
         }
     }
 
-    public async Task SaveAsync(AppSettings settings)
+ public async Task SaveAsync(AppSettings settings)
     {
-        var json = JsonSerializer.Serialize(settings, _jsonOptions);
-        await File.WriteAllTextAsync(_settingsPath, json);
+        try 
+        {
+            var json = JsonSerializer.Serialize(settings, _jsonOptions);
+            await File.WriteAllTextAsync(_settingsPath, json);
+            
+            // Update the cache immediately so other services get the new data
+            _cachedSettings = settings; 
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving settings: {ex.Message}");
+            throw; 
+        }
     }
 
     public async Task<AppSettings> GetSettingsAsync()
@@ -59,7 +76,7 @@ public class SettingsService
     }
 
     // Force reload from file
-        public async Task<AppSettings> ReloadSettingsAsync()
+    private async Task<AppSettings> ReloadSettingsAsync()
     {
         _cachedSettings = await LoadAsync();
         return _cachedSettings;

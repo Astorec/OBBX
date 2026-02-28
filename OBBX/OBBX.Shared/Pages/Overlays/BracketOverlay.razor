@@ -1,0 +1,437 @@
+@page "/overlay/bracket/double/winner/{Round:int}"
+@page "/overlay/bracket/double/winner"
+@page "/overlay/bracket/double/loser/{Round:int}"
+@page "/overlay/bracket/double/loser"
+@page "/overlay/bracket/{ViewMode}/{Round:int}"
+@page "/overlay/bracket/{ViewMode}"
+@page "/overlay/bracket"
+@layout EmptyLayout
+@using OBBX.Shared.Models
+@using OBBX.Shared.Services
+@using OBBX.Shared.Components.Overlays
+@inject MatchStateService MatchState
+@inject SettingsService AppSettings
+@inject NavigationManager NavManager
+@implements IDisposable
+
+<link href="_content/OBBX.Shared/css/bracket-overlay.css" rel="stylesheet" />
+
+<div class="bracket-container bracket-scroll-wrapper">
+    @if (!_isLoaded)
+    {
+        <div class="bracket-card loading" style="background: var(--bracket-bg); border: 1px solid var(--bracket-border); border-radius: 6px; padding: 20px; text-align: center;">
+            <div style="color: var(--bracket-accent);">Loading bracket...</div>
+        </div>
+    }
+    else if (_bracketInfo == null || _bracketInfo.PlayerCount == 0)
+    {
+        <div class="bracket-card" style="background: var(--bracket-bg); border: 1px solid var(--bracket-border); border-radius: 6px; padding: 20px; text-align: center;">
+            <div style="color: var(--bracket-text-muted);">No tournament data available</div>
+        </div>
+    }
+    else
+    {
+        @switch (CurrentView)
+        {
+            case "info":
+                <div class="bracket-card" style="background: var(--bracket-bg); border: 1px solid var(--bracket-border); border-radius: 6px; min-width: 280px;">
+                    <div style="background: linear-gradient(90deg, var(--bracket-accent) 0%, #00cc6a 100%); color: #000; font-weight: bold; font-size: 14px; padding: 8px 16px; text-align: center;">
+                        BRACKET INFO
+                    </div>
+                    <div style="padding: 12px 16px;">
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <span style="color: #888;">Players</span>
+                            <span style="color: #fff; font-weight: 600;">@_bracketInfo.PlayerCount</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <span style="color: #888;">Format</span>
+                            <span style="color: #fff; font-weight: 600;">@_bracketInfo.BracketTypeName</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <span style="color: #888;">Stage</span>
+                            <span style="color: #fff; font-weight: 600;">@_bracketInfo.StageName</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                            <span style="color: #888;">Points</span>
+                            <span style="color: #fff; font-weight: 600;">@_bracketInfo.PointsFormat</span>
+                        </div>
+                    </div>
+                </div>
+                break;
+                
+            case "standings":
+               <!--TODO-->
+               break;
+                
+            case "groups":
+               <!--TODO-->
+               break;
+                
+            case "swiss":
+                <SwissBracket MatchesByRound="GetSwissMatchesForView()" IsCompact="_isCompact" ShowSeeds="_showSeeds" PlayerSeeds="_playerSeeds" />
+                break;
+                
+            case "bracket":
+            case "single":
+               <!--TODO-->
+               break;
+                
+            case "double":
+               <!--TODO-->
+               break;
+                
+            default:
+                @* Auto-detect best view based on bracket type *@
+                @switch (_bracketInfo.BracketType)
+                {
+                    case BracketType.RoundRobin:
+                         
+                        <!-- TODO-->
+                        break;
+                        
+                    case BracketType.GroupRoundRobin:
+                        <!-- TODO-->
+                        break;
+                        
+                    case BracketType.GroupSwiss:
+                        <SwissBracket MatchesByRound="GetSwissMatchesForView()" IsCompact="_isCompact" ShowSeeds="_showSeeds" PlayerSeeds="_playerSeeds" />
+                        break;
+                        
+                    case BracketType.DoubleElimination:
+                        <!-- TODO-->
+                        break;
+                        
+                    case BracketType.SingleElimination:
+                        <!-- TODO-->
+                        break;
+                        
+                    default:
+                        <SwissBracket MatchesByRound="GetSwissMatchesForView()" IsCompact="_isCompact" ShowSeeds="_showSeeds" PlayerSeeds="_playerSeeds" />
+                        break;
+                }
+                break;
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string? ViewMode { get; set; }
+    [Parameter] public int? Round { get; set; }
+    [Parameter] public string? ElimView { get; set; } // "winner" or "loser" for double elim specific routes
+    
+    private BracketInfo? _bracketInfo;
+    private bool _isLoaded = false;
+    private bool _isCompact = false;
+    private bool _showSeeds = true;
+    private int _maxDisplayPlayers = 16;
+    
+    private List<ParticipantStanding> _standings = new();
+    private Dictionary<int, List<TournamentMatch>> _matchesByRound = new();
+    private Dictionary<int, List<TournamentMatch>> _winnersBracket = new();
+    private Dictionary<int, List<TournamentMatch>> _losersBracket = new();
+    private Dictionary<long, List<TournamentMatch>> _matchesByGroup = new();
+    private Dictionary<long, int> _playerSeeds = new();
+    private TournamentMatch? _grandFinals;
+    private AppSettings _settings = new();
+    
+    private PeriodicTimer? _refreshTimer;
+    private CancellationTokenSource? _cts;
+
+    private string CurrentView
+    {
+        get
+        {
+            // Handle bracket-specific routes like /double/winner or /double/loser
+            if (!string.IsNullOrEmpty(ElimView))
+            {
+                return "double";
+            }
+            return ViewMode?.ToLowerInvariant() ?? "auto";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cts = new CancellationTokenSource();        
+        _settings = await AppSettings.GetSettingsAsync();
+        MatchState.MatchesUpdated += OnMatchesUpdated;
+        MatchState.TableAssignmentChanged += OnTableAssignmentChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // If we have a Challonge URL but no data, try loading again in case it was a timing issue
+            if (_bracketInfo == null && !string.IsNullOrEmpty(_settings.Challonge?.Uri))
+            {
+                await LoadBracketData();
+                
+                await StartPeriodicRefresh();
+            }
+        }
+    }
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Detect bracket type from URL path for double elim specific routes
+        var path = NavManager.Uri.ToLowerInvariant();
+        if (path.Contains("/overlay/bracket/double/winner"))
+        {
+            ElimView = "winner";
+            ViewMode = null;
+        }
+        else if (path.Contains("/overlay/bracket/double/loser"))
+        {
+            ElimView = "loser";
+            ViewMode = null;
+        }
+        else
+        {
+            ElimView = null;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task LoadBracketData()
+    {
+        try
+        {
+            var settings = await AppSettings.GetSettingsAsync();
+            if (!string.IsNullOrEmpty(settings.Challonge?.Uri))
+            {
+                // Add a timeout or check if this call is actually completing
+                await MatchState.InitializeAsync(settings.Challonge.Uri);
+                RefreshLocalData();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Bracket Load Error: {ex.Message}");
+        }
+        finally 
+        {
+            _isLoaded = true; // This ensures the loading spinner disappears
+            StateHasChanged();
+        }
+    }
+
+    private void RefreshLocalData()
+    {
+        _bracketInfo = MatchState.GetBracketInfo();
+        _standings = MatchState.GetParticipantStandings();
+        _matchesByRound = MatchState.GetMatchesByRound();
+        _winnersBracket = MatchState.GetWinnersBracketMatches();
+        _losersBracket = MatchState.GetLosersBracketMatches();
+        _matchesByGroup = MatchState.GetMatchesByGroup();
+        
+        // Check if we need compact mode for large brackets
+        _isCompact = _bracketInfo?.PlayerCount > 32;
+        _maxDisplayPlayers = _bracketInfo?.PlayerCount > 64 ? 32 : 16;
+        
+        // Find grand finals for double elimination only (last match in winners bracket with highest round)
+        // For single elimination, keep all rounds in the bracket including finals
+        if (_bracketInfo?.BracketType == BracketType.DoubleElimination && _winnersBracket.Any())
+        {
+            var maxRound = _winnersBracket.Keys.Max();
+            var lastRoundMatches = _winnersBracket[maxRound];
+            if (lastRoundMatches.Count == 1)
+            {
+                _grandFinals = lastRoundMatches.First();
+                // Remove from winners bracket to prevent duplicate display
+                _winnersBracket.Remove(maxRound);
+            }
+        }
+    }
+
+    private Dictionary<int, List<TournamentMatch>> GetSwissMatchesForView()
+    {
+        if (!_matchesByRound.Any() || !Round.HasValue)
+        {
+            return _matchesByRound;
+        }
+
+        if (_matchesByRound.TryGetValue(Round.Value, out var matches))
+        {
+            return new Dictionary<int, List<TournamentMatch>>
+            {
+                { Round.Value, matches }
+            };
+        }
+
+        // If specified round doesn't exist, fall back to all rounds
+        return _matchesByRound;
+    }
+
+    private Dictionary<int, List<TournamentMatch>> GetFilteredWinnersBracket()
+    {
+        // If a specific bracket type route is being used with a round filter
+        if (ElimView == "winner" && Round.HasValue)
+        {
+            if (_winnersBracket.TryGetValue(Round.Value, out var matches))
+            {
+                return new Dictionary<int, List<TournamentMatch>>
+                {
+                    { Round.Value, matches }
+                };
+            }
+            return new Dictionary<int, List<TournamentMatch>>();
+        }
+
+        // Return all rounds or filtered by Round parameter if using generic double route
+        if (Round.HasValue && _winnersBracket.TryGetValue(Round.Value, out var roundMatches))
+        {
+            return new Dictionary<int, List<TournamentMatch>>
+            {
+                { Round.Value, roundMatches }
+            };
+        }
+
+        return _winnersBracket;
+    }
+
+    private Dictionary<int, List<TournamentMatch>> GetFilteredLosersBracket()
+    {
+        // Only show losers bracket if specifically requested via route
+        if (ElimView != "loser")
+        {
+            return new Dictionary<int, List<TournamentMatch>>();
+        }
+
+        // If a specific round is requested, convert to negative (API uses negative rounds for losers)
+        if (Round.HasValue)
+        {
+            var negativeRound = -Round.Value;
+            if (_losersBracket.TryGetValue(negativeRound, out var matches))
+            {
+                return new Dictionary<int, List<TournamentMatch>>
+                {
+                    { negativeRound, matches }
+                };
+            }
+            return new Dictionary<int, List<TournamentMatch>>();
+        }
+
+        // Return all losers bracket rounds
+        return _losersBracket;
+    }
+
+    private TournamentMatch? GetFilteredGrandFinals()
+    {
+        // Only show grand finals if not showing a specific bracket/round
+        if (ElimView != null && Round.HasValue)
+        {
+            return null;
+        }
+
+        return _grandFinals;
+    }
+
+    private string GetRoundDisplayName(string elimView, int round)
+    {
+        return elimView.ToLowerInvariant() switch
+        {
+            "winner" => $"Winners Round {round}",
+            "loser" => $"Losers Round {round}",
+            _ => $"Round {round}"
+        };
+    }
+
+    private List<TournamentMatch> GetMatchesForRound(Dictionary<int, List<TournamentMatch>> bracket, int round)
+    {
+        return bracket.TryGetValue(round, out var matches) ? matches : new List<TournamentMatch>();
+    }
+
+    private RenderFragment RenderSimpleMatch(TournamentMatch match) => __builder =>
+    {
+        var isComplete = match.State == TournamentMatchState.Complete;
+        var p1Winner = match.WinnerId == match.Player1Id && isComplete;
+        var p2Winner = match.WinnerId == match.Player2Id && isComplete;
+
+        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; @(p1Winner ? "color: #00cc6a; font-weight: bold;" : "")">
+                <span>@(match.Player1Name ?? "TBD")</span>
+                <span style="color: #888; font-size: 12px;">@GetPlayerScore(match, 0)</span>
+            </div>
+            <div style="height: 1px; background: rgba(255,255,255,0.1);"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; @(p2Winner ? "color: #00cc6a; font-weight: bold;" : "")">
+                <span>@(match.Player2Name ?? "TBD")</span>
+                <span style="color: #888; font-size: 12px;">@GetPlayerScore(match, 1)</span>
+            </div>
+        </div>
+    };
+
+    private string GetPlayerScore(TournamentMatch match, int playerIndex)
+    {
+        if (string.IsNullOrEmpty(match.ScoresCsv)) return "";
+        
+        try
+        {
+            var games = match.ScoresCsv.Split(',');
+            var gamesWon = 0;
+            
+            foreach (var game in games)
+            {
+                var scores = game.Trim().Split('-');
+                if (scores.Length == 2 && 
+                    int.TryParse(scores[0], out var p1Score) && 
+                    int.TryParse(scores[1], out var p2Score))
+                {
+                    if (playerIndex == 0 && p1Score > p2Score) gamesWon++;
+                    else if (playerIndex == 1 && p2Score > p1Score) gamesWon++;
+                }
+            }
+            
+            return gamesWon.ToString();
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    private async Task StartPeriodicRefresh()
+    {
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        
+        try
+        {
+            while (await _refreshTimer.WaitForNextTickAsync(_cts?.Token ?? default))
+            {
+                if (MatchState.IsInitialized)
+                {
+                    await MatchState.RefreshFromChallongeAsync();
+                    RefreshLocalData();
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on dispose
+        }
+    }
+
+    private void OnMatchesUpdated(object? sender, MatchesUpdatedEventArgs e)
+    {
+        RefreshLocalData();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTableAssignmentChanged(object? sender, TableAssignmentChangedEventArgs e)
+    {
+        // Refresh so updated table numbers are reflected in overlays
+        RefreshLocalData();
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        MatchState.MatchesUpdated -= OnMatchesUpdated;
+        MatchState.TableAssignmentChanged -= OnTableAssignmentChanged;
+        _cts?.Cancel();
+        _refreshTimer?.Dispose();
+    }
+}
