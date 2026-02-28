@@ -26,3 +26,12 @@ jobs:
       run: dotnet restore OBBX.sln
     - name: Build Web Project
       run: dotnet build "OBBX\OBBX.Web\OBBX.Web.csproj" -c Release
+
+    - name: Publish Web App
+      run: dotnet publish "OBBX\OBBX.Web\OBBX.Web.csproj" -c Release -o ./web-publish
+
+    - name: Upload Web Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OBBX-Web-TestBuild
+        path: ./web-publish
