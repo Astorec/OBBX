@@ -84,6 +84,7 @@ public class OBSWebSocketService
         }
         _isAttemptingConnection = false;
     }
+
     public async Task DisconnectAsync()
     {
         if (_obsClient.IsConnected)
@@ -235,6 +236,28 @@ public class OBSWebSocketService
 
     #endregion
 
+    #region Source Methods
+    public async Task UpdateBrowserSourceUrl(string sourceName, string newUrl)
+    {
+        if (!_isConnected) return;
+
+        try
+        {
+            var inputSettingsRequest = new SetInputSettingsRequestData
+            {
+                InputName = sourceName,
+                InputSettings = JsonDocument.Parse($"{{ \"url\": \"{newUrl}\" }}").RootElement
+            };
+
+            await _obsClient.SetInputSettingsAsync(inputSettingsRequest);
+            _logger.LogInformation("Updated OBS Source {Source} to {Url}", sourceName, newUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update browser source URL");
+        }
+    }
+    #endregion
     #region Public Methods
 
     public bool GetLiveStatus

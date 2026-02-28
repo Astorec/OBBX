@@ -229,7 +229,7 @@ public class TablesViewModel : IDisposable
     }
     public async Task OpenTableSettingsAsync()
     {
-        var dialog = await _dialogService.ShowAsync<OBBX.Shared.Pages.Popups.TableSettings>("Table Settings");
+        var dialog = await _dialogService.ShowAsync<Pages.Popups.TableSettings>("Table Settings");
         var result = await dialog.Result;
         if (!result.Canceled) await LoadSettingsAsync();
         NotifyChanged();

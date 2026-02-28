@@ -1,0 +1,230 @@
+@page "/overlay/bracket/single"
+@using OBBX.Shared.Models
+@using System.Text.RegularExpressions
+@layout EmptyLayout
+@inject MatchStateService MatchState
+
+<div class="single-elim-root">
+    @if (MatchesByRound == null || !MatchesByRound.Any())
+    {
+        <div class="d-flex align-center justify-center style-loading" style="height: 100vh;">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else
+    {
+        <div class="bracket-scroller">
+            @* FILTER: Only show rounds > 0 in the horizontal flow *@
+            @foreach (var round in MatchesByRound.Where(r => r.Key > 0).OrderBy(r => r.Key))
+            {
+                <div class="bracket-column">
+                    <div class="round-header-full mb-4">
+                        <MudText Typo="Typo.h5" Style="color: var(--mud-palette-primary); font-weight: 900; text-transform: uppercase;">
+                            @GetRoundName(round.Key, MatchesByRound.Keys.Max())
+                        </MudText>
+                    </div>
+
+                    <div class="matches-spacer">
+                        @foreach (var match in round.Value)
+                        {
+                            @RenderMatch(match)
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* 3rd Place Playoff floating in the bottom right *@
+        @if (MatchesByRound.ContainsKey(0))
+        {
+            <div class="third-place-container">
+                <div class="round-header-full mb-2">
+                    <MudText Typo="Typo.button" Style="color: var(--mud-palette-primary); font-weight: 900; letter-spacing: 2px;">
+                        3RD PLACE PLAYOFF
+                    </MudText>
+                </div>
+                @foreach (var match in MatchesByRound[0])
+                {
+                    @RenderMatch(match)
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Dictionary<int, List<TournamentMatch>> MatchesByRound { get; set; } = new();
+    [Parameter] public bool ShowSeeds { get; set; } = true;
+    [Parameter] public Dictionary<long, int>? PlayerSeeds { get; set; }
+
+    // Shared Match UI Component
+    RenderFragment RenderMatch(TournamentMatch match) => __builder => {
+        var p1Winner = match.WinnerId == match.Player1Id && match.State == TournamentMatchState.Complete;
+        var p2Winner = match.WinnerId == match.Player2Id && match.State == TournamentMatchState.Complete;
+
+        <div class="match-wrapper">
+            <MudPaper Elevation="0" Class="match-container">
+                <div class="player-row @(p1Winner ? "is-winner" : "")">
+                    <div class="player-info">
+                        @if (ShowSeeds && PlayerSeeds != null && match.Player1Id.HasValue && PlayerSeeds.ContainsKey(match.Player1Id.Value))
+                        {
+                            <span class="seed-badge">@PlayerSeeds[match.Player1Id.Value]</span>
+                        }
+                        <MudText Typo="Typo.button" Class="player-name">@(match.Player1Name ?? "TBD")</MudText>
+                    </div>
+                    <MudText Typo="Typo.h6" Class="player-score">@GetScore(match, 0)</MudText>
+                </div>
+                <MudDivider Style="background-color: rgba(255,255,255,0.05);" />
+                <div class="player-row @(p2Winner ? "is-winner" : "")">
+                    <div class="player-info">
+                        @if (ShowSeeds && PlayerSeeds != null && match.Player2Id.HasValue && PlayerSeeds.ContainsKey(match.Player2Id.Value))
+                        {
+                            <span class="seed-badge">@PlayerSeeds[match.Player2Id.Value]</span>
+                        }
+                        <MudText Typo="Typo.button" Class="player-name">@(match.Player2Name ?? "TBD")</MudText>
+                    </div>
+                    <MudText Typo="Typo.h6" Class="player-score">@GetScore(match, 1)</MudText>
+                </div>
+                <div class="match-footer">
+                    @if (match.TableNumber > 0) { <span>TBL @match.TableNumber</span> }
+                    else if (match.State == TournamentMatchState.Complete) { <span>FINAL</span> }
+                    else { <span>PENDING</span> }
+                </div>
+            </MudPaper>
+        </div>
+    };
+
+    private string GetRoundName(int round, int totalRounds)
+    {
+        if (round == totalRounds) return "Grand Finals";
+        if (round == totalRounds - 1) return "Semi Finals";
+        if (round == totalRounds - 2) return "Quarter Finals";
+        return $"Round {round}";
+    }
+
+    private string GetScore(TournamentMatch match, int playerIndex)
+    {
+        if (string.IsNullOrEmpty(match.ScoresCsv)) return "0";
+        try
+        {
+            var pattern = playerIndex == 0 ? "PlayerOneScore\\s*=\\s*(\\d+)" : "PlayerTwoScore\\s*=\\s*(\\d+)";
+            var regexMatches = Regex.Matches(match.ScoresCsv, pattern);
+            if (regexMatches.Count == 0) return "0";
+            var totalScore = 0;
+            foreach (Match m in regexMatches)
+            {
+                if (int.TryParse(m.Groups[1].Value, out var score)) totalScore += score;
+            }
+            return totalScore.ToString();
+        }
+        catch { return "0"; }
+    }
+}
+
+<style>
+    .single-elim-root {
+        width: 1920px;
+        height: 1080px;
+        background-color: #0a0a0a;
+        overflow: hidden;
+        padding: 40px;
+        color: white;
+        position: relative; /* Essential for absolute positioning of 3rd place */
+    }
+
+    .bracket-scroller {
+        display: flex;
+        flex-direction: row;
+        height: 100%;
+        gap: 30px;
+    }
+
+    .bracket-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 300px;
+    }
+
+    .round-header-full {
+        border-bottom: 3px solid #c6ff00;
+        text-align: center;
+    }
+
+    .matches-spacer {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        height: 100%;
+    }
+
+    .match-wrapper {
+        position: relative;
+        padding: 10px 0;
+    }
+
+    .match-container {
+        background-color: #1a1a1a !important;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .player-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 12px;
+    }
+
+    .player-row.is-winner {
+        background: linear-gradient(90deg, rgba(198, 255, 0, 0.15) 0%, transparent 100%);
+    }
+
+    .player-row.is-winner .player-name { color: #c6ff00; }
+
+    .player-info { display: flex; align-items: center; gap: 8px; }
+
+    .seed-badge {
+        font-size: 0.6rem;
+        background: #333;
+        color: #999;
+        padding: 1px 4px;
+        border-radius: 2px;
+    }
+
+    .player-name {
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        font-size: 1rem;
+    }
+
+    .player-score {
+        font-family: 'Courier New', monospace;
+        color: #c6ff00;
+        font-weight: 900;
+    }
+
+    .match-footer {
+        background: rgba(0,0,0,0.3);
+        font-size: 0.65rem;
+        text-align: center;
+        color: #666;
+        padding: 2px 0;
+        letter-spacing: 1px;
+        font-weight: bold;
+    }
+
+    /* 3rd Place Playoff Positioning */
+    .third-place-container {
+        position: absolute;
+        bottom: 40px;
+        right: 40px;
+        width: 300px; /* Match standard column width */
+        z-index: 10;
+        background: rgba(10, 10, 10, 0.9);
+        padding: 15px;
+        border: 1px solid rgba(198, 255, 0, 0.2);
+        border-radius: 8px;
+    }
+</style>

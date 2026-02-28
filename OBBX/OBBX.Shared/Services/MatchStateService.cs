@@ -441,24 +441,30 @@ public class MatchStateService : IDisposable
     {
         if (!_matches.Any()) return (0, "Unknown");
 
-        // 1. Get all matches that are playable (ready to be started) 
-        // or currently in progress, but not finished.
         var activeMatches = _matches.Values
-            .Where(m => m.IsPlayable && m.State != TournamentMatchState.Complete)
+            .Where(m => m.State == TournamentMatchState.Open)
             .ToList();
 
-        // 2. If all matches are finished, the tournament might be over.
         if (!activeMatches.Any())
         {
-            var lastMatch = _matches.Values.OrderByDescending(m => m.Round).FirstOrDefault();
+            activeMatches = _matches.Values
+                .Where(m => m.IsPlayable && m.State != TournamentMatchState.Complete)
+                .ToList();
+        }
+
+        if (!activeMatches.Any())
+        {
+            var lastMatch = _matches.Values
+                .OrderByDescending(m => GetStagePriority(m.Stage.ToString()))
+                .ThenByDescending(m => m.Round)
+                .FirstOrDefault();
+
             return (lastMatch?.Round ?? 0, lastMatch?.Stage.ToString() ?? "Unknown");
         }
 
-        // 3. Determine the "lowest" round currently active. 
-        // We group by Stage first because Round 1 of Finals is "later" than Round 3 of Groups.
         var currentMatch = activeMatches
-            .OrderBy(m => GetStagePriority(m.Stage.ToString())) // Ensure Groups come before Finals
-            .ThenBy(m => m.Round == 0 ? 999 : m.Round) // Treat Round 0 (3rd place) as high/last
+            .OrderByDescending(m => GetStagePriority(m.Stage.ToString())) // Focus on Finals if they exist
+            .ThenBy(m => m.Round == 0 ? 999 : m.Round) // Then look at the earliest round in that stage
             .First();
 
         return (currentMatch.Round, currentMatch.Stage.ToString());

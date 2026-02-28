@@ -22,7 +22,7 @@
     else
     {
         @* MudGrid with Spacing 2 to provide clean gutters between tables *@
-        <MudGrid Spacing="2" Class="tables-grid">
+        <MudGrid Spacing="2" Class="tables-grid pa-12">
             @foreach (var tableGroup in _assignedTables.OrderBy(t => t.Key))
             {
                 var tableNumber = tableGroup.Key;
@@ -68,7 +68,7 @@
     .obs-overlay-container {
         width: 100vw;
         height: 100vh;
-        background-color: var(--mud-palette-background); /* #0a0a0a */
+        background-color: #1a1a1a;
         padding: 4vh;
         overflow: hidden !important;
         display: flex;

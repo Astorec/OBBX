@@ -1,6 +1,6 @@
 @using OBBX.Shared.Models
 @using System.Text.RegularExpressions
-
+@layout EmptyLayout
 <div class="obs-dashboard">
     @foreach (var round in MatchesByRound.OrderBy(r => r.Key))
     {
