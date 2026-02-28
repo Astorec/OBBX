@@ -26,4 +26,7 @@ jobs:
       run: dotnet restore OBBX.sln
 
     - name: Build Web Project
-      run: dotnet build OBBX.Web/OBBX.Web.csproj -c Release
+      run: dotnet build "OBBX.Web\OBBX.Web.csproj" -c Release
+
+    - name: List files for debugging
+      run: dir /s
