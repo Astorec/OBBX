@@ -14,20 +14,20 @@ show bracket information on a screen in a better format for viewers.
 - [x] Add Settings Page to configure Challonge and OBS WebSocket
 - [x] Save Settings to app data folder
 - [x] Load Settings on app start
-- [ ] Connect to OBS WebSocket using saved settings
-- [ ] Fetch Match Information from Challonge using saved settings
-- [ ] Add scene selection and match pushing functionality
-- [ ] Add Table selection and prompt to push match info to selected scene
-- [ ] Add error handling and user feedback for failed connections
+- [x] Connect to OBS WebSocket using saved settings
+- [x] Fetch Match Information from Challonge using saved settings
+- [x] Add scene selection and match pushing functionality
+- [x] Add Table selection and prompt to push match info to selected scene
+- [x] Add error handling and user feedback for failed connections
 - [ ] Add player preview information on dashboard
 - [ ] Display each match as a Table and click to push to OBS
-- [ ] Add Break Scene functionality
-- [ ] Cache Challonge data locally to reduce API calls
-- [ ] Update Matches automatically when changed in Challonge
+- [x] Add Break Scene functionality
+- [x] Cache Challonge data locally to reduce API calls
+- [x] Update Matches automatically when changed in Challonge
 - [ ] Have a manual complete match button to get next match info and mark locally until Challonge is refreshed
 - [ ] Add CSV Import for Beyblade Deck Lists
 - [ ] Match CSV to player names form Challonge and display deck info on stream
 - [ ] Manual Edit of Player Deck Info on Dashboard
-- [ ] Add Table Configurations
-- [ ] Set number of Tables (Stations) in use
-- [ ] Assign Matches to Tables automatically
+- [x] Add Table Configurations
+- [x] Set number of Tables (Stations) in use
+- [x] Assign Matches to Tables automatically - This is now done through the Challonge API
