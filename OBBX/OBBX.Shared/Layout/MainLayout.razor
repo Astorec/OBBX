@@ -1,4 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@inject OBBX.Shared.Services.ChallongeService ChallongeService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
 
 <MudThemeProvider theme="_theme" IsDarkMode="true" />
 <MudPopoverProvider />
@@ -20,6 +23,26 @@
 </MudLayout>
 
 @code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ChallongeService.InitChallongeClientAsync();
+
+            if (!ChallongeService.IsConfigured)
+            {
+                Snackbar.Add($"{ChallongeService.ConfigurationError} Please check your settings.", 
+                    Severity.Warning, config => 
+                {
+                    config.OnClick = snackbar => {
+                        Nav.NavigateTo("/settings");
+                        return Task.CompletedTask;
+                    };
+                });
+            }
+        }
+    }
+
     private MudTheme _theme = new MudTheme
     {
         PaletteDark = new PaletteDark
@@ -40,7 +63,7 @@
         {
             Default = new DefaultTypography
             {
-                FontFamily = new[] { "BigNoodleTitling", "Arial"}
+                FontFamily = new[] { "BigNoodleTitling", "Arial" }
             }
         }
     };

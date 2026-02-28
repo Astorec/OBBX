@@ -41,9 +41,17 @@ var settings = Task.Run(() => new SettingsService().GetSettingsAsync()).GetAwait
 // Use the library's extension method to register all dependencies
 builder.Services.AddObsWebSocketClient(options =>
 {
-    options.ServerUri = new Uri($"ws://{settings.OBSWebSocket.Address ?? "localhost"}:{settings.OBSWebSocket.Port}");
+    // Ensure we have a valid hostname and port to prevent UriFormatException
+    var host = string.IsNullOrWhiteSpace(settings.OBSWebSocket.Address) 
+               ? "localhost" 
+               : settings.OBSWebSocket.Address;
+               
+    var port = settings.OBSWebSocket.Port <= 0 ? 4455 : settings.OBSWebSocket.Port;
+
+    options.ServerUri = new Uri($"ws://{host}:{port}");
     options.Password = settings.OBSWebSocket.Key ?? "";
 });
+
 builder.Services.AddSingleton<OBSWebSocketService>();
 builder.Services.AddSingleton<ChallongeService>();
 builder.Services.AddSingleton<MatchStateService>();

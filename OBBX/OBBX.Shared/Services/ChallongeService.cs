@@ -4,6 +4,7 @@ using OBBX.Shared.Models;
 using System.Text.Json;
 using OBBX.Shared.Misc;
 using RestSharp;
+
 namespace OBBX.Shared.Services;
 
 
@@ -17,6 +18,7 @@ public class ChallongeService
     private List<Participant> _participants = new List<Participant>();
     private Dictionary<string, string> _tournamentIdCache = new();
 
+
     public ChallongeService(SettingsService settingsService)
     {
         _settingsService = settingsService;
@@ -24,12 +26,33 @@ public class ChallongeService
     #endregion
 
     #region Methods
+
+    public bool IsConfigured { get; private set; }
+    public string? ConfigurationError { get; private set; }
+
     public async Task InitChallongeClientAsync()
     {
-        var settings = await _settingsService.GetSettingsAsync();
-        _httpClient = new HttpClient();
-        _credentials = new ChallongeCredentials(settings.Challonge.Username, settings.Challonge.ApiKey);
-        _client = new ChallongeClient(_httpClient, _credentials);
+        try
+        {
+            var settings = await _settingsService.GetSettingsAsync();
+            if (string.IsNullOrWhiteSpace(settings.Challonge.ApiKey) ||
+              string.IsNullOrWhiteSpace(settings.Challonge.Username))
+            {
+                IsConfigured = false;
+                ConfigurationError = "Challonge API Key or Username is missing.";
+                return;
+            }
+            _httpClient = new HttpClient();
+            _credentials = new ChallongeCredentials(settings.Challonge.Username, settings.Challonge.ApiKey);
+            _client = new ChallongeClient(_httpClient, _credentials);
+            IsConfigured = true;
+            ConfigurationError = null;
+        }
+        catch (Exception ex)
+        {
+            IsConfigured = false;
+            ConfigurationError = $"Initialization failed: {ex.Message}";
+        }
     }
 
     /// <summary>
@@ -134,16 +157,15 @@ public class ChallongeService
     /// <returns></returns>
     public async Task<List<Match>> GetMatchesAsync(string tournamentUrl)
     {
-        if (_client == null)
-        {
-            await InitChallongeClientAsync();
-        }
+        if (string.IsNullOrWhiteSpace(tournamentUrl)) return new List<Match>();
+        if (_client == null) await InitChallongeClientAsync();
+        if (!IsConfigured) return new List<Match>();
 
         try
         {
             // Get the tournament identifier from the URL using the ChallongeURLConverter
             var tournamentIdentifier = ChallongeURLConverter.GetTournamentIdentifier(tournamentUrl);
-            if (tournamentIdentifier == null)
+            if (string.IsNullOrEmpty(tournamentIdentifier))
             {
                 return new List<Match>();
             }
