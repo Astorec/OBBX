@@ -19,7 +19,8 @@
             {
                 <div class="bracket-column">
                     <div class="round-header-full mb-4">
-                        <MudText Typo="Typo.h5" Style="color: var(--mud-palette-primary); font-weight: 900; text-transform: uppercase;">
+                        <MudText Typo="Typo.h5"
+                                 Style="color: var(--mud-palette-primary); font-weight: 900; text-transform: uppercase;">
                             @GetRoundName(round.Key, MatchesByRound.Keys.Max())
                         </MudText>
                     </div>
@@ -39,7 +40,8 @@
         {
             <div class="third-place-container">
                 <div class="round-header-full mb-2">
-                    <MudText Typo="Typo.button" Style="color: var(--mud-palette-primary); font-weight: 900; letter-spacing: 2px;">
+                    <MudText Typo="Typo.button"
+                             Style="color: var(--mud-palette-primary); font-weight: 900; letter-spacing: 2px;">
                         3RD PLACE PLAYOFF
                     </MudText>
                 </div>
@@ -57,8 +59,23 @@
     [Parameter] public bool ShowSeeds { get; set; } = true;
     [Parameter] public Dictionary<long, int>? PlayerSeeds { get; set; }
 
+    protected override async Task OnInitializedAsync()
+    {
+        MatchFilter filter = new MatchFilter { Stage = MatchStage.Finals };
+        var allMatches = MatchState.GetMatches(filter);
+
+        if (allMatches != null && allMatches.Any())
+        {
+            MatchesByRound = allMatches
+                .GroupBy(m => m.Round)
+                .ToDictionary(g => g.Key, g => g.ToList());
+        }
+        StateHasChanged();
+    }
+
     // Shared Match UI Component
-    RenderFragment RenderMatch(TournamentMatch match) => __builder => {
+    RenderFragment RenderMatch(TournamentMatch match) => __builder =>
+    {
         var p1Winner = match.WinnerId == match.Player1Id && match.State == TournamentMatchState.Complete;
         var p2Winner = match.WinnerId == match.Player2Id && match.State == TournamentMatchState.Complete;
 
@@ -66,7 +83,8 @@
             <MudPaper Elevation="0" Class="match-container">
                 <div class="player-row @(p1Winner ? "is-winner" : "")">
                     <div class="player-info">
-                        @if (ShowSeeds && PlayerSeeds != null && match.Player1Id.HasValue && PlayerSeeds.ContainsKey(match.Player1Id.Value))
+                        @if (ShowSeeds && PlayerSeeds != null && match.Player1Id.HasValue &&
+                                        PlayerSeeds.ContainsKey(match.Player1Id.Value))
                         {
                             <span class="seed-badge">@PlayerSeeds[match.Player1Id.Value]</span>
                         }
@@ -77,7 +95,8 @@
                 <MudDivider Style="background-color: rgba(255,255,255,0.05);" />
                 <div class="player-row @(p2Winner ? "is-winner" : "")">
                     <div class="player-info">
-                        @if (ShowSeeds && PlayerSeeds != null && match.Player2Id.HasValue && PlayerSeeds.ContainsKey(match.Player2Id.Value))
+                        @if (ShowSeeds && PlayerSeeds != null && match.Player2Id.HasValue &&
+                                        PlayerSeeds.ContainsKey(match.Player2Id.Value))
                         {
                             <span class="seed-badge">@PlayerSeeds[match.Player2Id.Value]</span>
                         }
@@ -86,9 +105,20 @@
                     <MudText Typo="Typo.h6" Class="player-score">@GetScore(match, 1)</MudText>
                 </div>
                 <div class="match-footer">
-                    @if (match.TableNumber > 0) { <span>TBL @match.TableNumber</span> }
-                    else if (match.State == TournamentMatchState.Complete) { <span>FINAL</span> }
-                    else { <span>PENDING</span> }
+                    @if (match.TableNumber > 0)
+                    {
+                        <span>TBL @match.TableNumber</span>
+                    }
+                    else if (match.State == TournamentMatchState.Complete)
+                    {
+
+                        <span>FINAL</span>
+                    }
+                    else
+                    {
+
+                        <span>PENDING</span>
+                    }
                 </div>
             </MudPaper>
         </div>
@@ -129,7 +159,8 @@
         overflow: hidden;
         padding: 40px;
         color: white;
-        position: relative; /* Essential for absolute positioning of 3rd place */
+        position: relative;
+        /* Essential for absolute positioning of 3rd place */
     }
 
     .bracket-scroller {
@@ -181,9 +212,15 @@
         background: linear-gradient(90deg, rgba(198, 255, 0, 0.15) 0%, transparent 100%);
     }
 
-    .player-row.is-winner .player-name { color: #c6ff00; }
+    .player-row.is-winner .player-name {
+        color: #c6ff00;
+    }
 
-    .player-info { display: flex; align-items: center; gap: 8px; }
+    .player-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
 
     .seed-badge {
         font-size: 0.6rem;
@@ -206,7 +243,7 @@
     }
 
     .match-footer {
-        background: rgba(0,0,0,0.3);
+        background: rgba(0, 0, 0, 0.3);
         font-size: 0.65rem;
         text-align: center;
         color: #666;
@@ -220,7 +257,8 @@
         position: absolute;
         bottom: 40px;
         right: 40px;
-        width: 300px; /* Match standard column width */
+        width: 300px;
+        /* Match standard column width */
         z-index: 10;
         background: rgba(10, 10, 10, 0.9);
         padding: 15px;
