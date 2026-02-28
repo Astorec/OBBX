@@ -27,7 +27,7 @@ jobs:
     
       
     - name: List files for debugging
-      run: dir /s
-      
+      run: Get-ChildItem -Recurse -Name
+
     - name: Build Web Project
       run: dotnet build "OBBX.Web\OBBX.Web.csproj" -c Release
