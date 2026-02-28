@@ -35,3 +35,12 @@ jobs:
       with:
         name: OBBX-Web-TestBuild
         path: ./web-publish
+
+    - name: Publish Web App (Linux)
+      run: dotnet publish "OBBX\OBBX.Web\OBBX.Web.csproj" -c Release -r linux-x64 --self-contained true -o ./linux-publish
+
+    - name: Upload Linux Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OBBX-Web-Linux-TestBuild
+        path: ./linux-publish
