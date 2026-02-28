@@ -100,6 +100,5 @@ BenchmarkDotNet.Artifacts/
 
 # Local settings
 local.settings.json
-OBBX/OBBX.Shared/wwwroot/fonts/big_noodle_titling.ttf
 .vscode/settings.json
 .vscode/settings.json
