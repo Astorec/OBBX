@@ -25,4 +25,4 @@ jobs:
     - name: Restore Dependencies
       run: dotnet restore OBBX.sln
     - name: Build Web Project
-      run: dotnet build "..\OBBX.Web\OBBX.Web.csproj" -c Release
+      run: dotnet build "OBBX\OBBX.Web\OBBX.Web.csproj" -c Release
