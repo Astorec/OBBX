@@ -1,10 +1,13 @@
-@page "/overlay/bracket/double/winner/{Round:int}"
-@page "/overlay/bracket/double/winner"
-@page "/overlay/bracket/double/loser/{Round:int}"
-@page "/overlay/bracket/double/loser"
-@page "/overlay/bracket/{ViewMode}/{Round:int}"
-@page "/overlay/bracket/{ViewMode}"
 @page "/overlay/bracket"
+@page "/overlay/bracket/{ViewMode}"
+@page "/overlay/bracket/{ViewMode}/{Round:int}"
+@page "/overlay/bracket/{ViewMode}/{Round:int}/{Page:int}"
+@page "/overlay/bracket/double/winner"
+@page "/overlay/bracket/double/winner/{Round:int}"
+@page "/overlay/bracket/double/winner/{Round:int}/{Page:int}"
+@page "/overlay/bracket/double/loser"
+@page "/overlay/bracket/double/loser/{Round:int}"
+@page "/overlay/bracket/double/loser/{Round:int}/{Page:int}"
 @layout EmptyLayout
 @using OBBX.Shared.Models
 @using OBBX.Shared.Services
@@ -68,8 +71,11 @@
                break;
                 
             case "swiss":
-                <SwissBracket MatchesByRound="GetSwissMatchesForView()" IsCompact="_isCompact" ShowSeeds="_showSeeds" PlayerSeeds="_playerSeeds" />
-                break;
+                <SwissBracket MatchesByRound="GetSwissMatchesForView()" 
+              Round="Round"
+              Page="CurrentPage"
+              IsCompact="_isCompact" 
+              PlayerSeeds="_playerSeeds" />break;
                 
             case "bracket":
             case "single":
@@ -117,6 +123,7 @@
 @code {
     [Parameter] public string? ViewMode { get; set; }
     [Parameter] public int? Round { get; set; }
+    [Parameter] public int? Page { get; set; }
     [Parameter] public string? ElimView { get; set; } // "winner" or "loser" for double elim specific routes
     
     private BracketInfo? _bracketInfo;
@@ -133,7 +140,7 @@
     private Dictionary<long, int> _playerSeeds = new();
     private TournamentMatch? _grandFinals;
     private AppSettings _settings = new();
-    
+    private int CurrentPage => Page ?? 1;
     private PeriodicTimer? _refreshTimer;
     private CancellationTokenSource? _cts;
 
@@ -156,6 +163,8 @@
         _settings = await AppSettings.GetSettingsAsync();
         MatchState.MatchesUpdated += OnMatchesUpdated;
         MatchState.TableAssignmentChanged += OnTableAssignmentChanged;
+        await LoadBracketData();
+                
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -165,8 +174,6 @@
             // If we have a Challonge URL but no data, try loading again in case it was a timing issue
             if (_bracketInfo == null && !string.IsNullOrEmpty(_settings.Challonge?.Uri))
             {
-                await LoadBracketData();
-                
                 await StartPeriodicRefresh();
             }
         }
@@ -248,12 +255,14 @@
 
     private Dictionary<int, List<TournamentMatch>> GetSwissMatchesForView()
     {
-        if (!_matchesByRound.Any() || !Round.HasValue)
+            // If we have no data yet, return empty
+        if (_matchesByRound == null || !_matchesByRound.Any())
         {
-            return _matchesByRound;
+            return new Dictionary<int, List<TournamentMatch>>();
         }
 
-        if (_matchesByRound.TryGetValue(Round.Value, out var matches))
+        // If the URL has a Round (e.g., /1/), try to get exactly that round
+        if (Round.HasValue && _matchesByRound.TryGetValue(Round.Value, out var matches))
         {
             return new Dictionary<int, List<TournamentMatch>>
             {
@@ -290,6 +299,16 @@
         }
 
         return _winnersBracket;
+    }
+
+    private int GetTotalPagesForRound(int round)
+    {
+        if (_matchesByRound.TryGetValue(round, out var matches))
+        {
+            // MatchesPerPage should match what you set in the SwissBracket (e.g., 8)
+            return (int)Math.Ceiling(matches.Count / 8.0);
+        }
+        return 1;
     }
 
     private Dictionary<int, List<TournamentMatch>> GetFilteredLosersBracket()

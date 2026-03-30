@@ -14,6 +14,12 @@ public class ChallongeSettings
     public string? ApiKey {get; set;} = string.Empty;
     public string? Uri {get; set;} = string.Empty;
     public int RefreshIntervalSeconds {get; set;} = 30;
+    public bool IsDoubleElim {get; set;} = false;
+    public int CurrentRound {get; set; } = 0;
+    public int CurrentLoserBracket {get; set;} = -1; // Loser Bracket gets set to -1 and lower so we can get it that way
+    public string CurrentStage {get; set;} = "Unknown";
+    public string CurrentBracket {get; set;} = "NotDoubleElim";
+    public int playerCount {get; set; } = 0;
 }
 
 public class OBSWebSocketSettings

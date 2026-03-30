@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Challonge.Objects;
+using MudBlazor;
 using OBBX.Shared.Models;
+using OBBX.Shared.Pages;
 
 namespace OBBX.Shared.Services;
 
@@ -20,7 +22,9 @@ public class MatchStateService : IDisposable
     private Dictionary<long, Participant> _groupPlayerIdToParticipant = new(); private Timer? _refreshTimer;
     private bool _isRefreshing;
     private string? _currentTournamentUrl;
+    private bool _isDoubleElim = false;
     private int _currentRound;
+    private int _currentLoserBracket;
     #endregion
 
     #region  Event Handlers and Args
@@ -214,6 +218,11 @@ public class MatchStateService : IDisposable
             .ToDictionary(g => g.Key, g => g.OrderBy(m => m.SuggestedPlayOrder ?? 0).ToList());
     }
 
+    public int GetMatchCountByRound(int roundNum)
+    {
+        return _matches.Count(m => m.Value.Round == roundNum);
+    }
+
     /// <summary>
     /// Get winners bracket matches (non-negative rounds) for single/double elimination
     /// Includes round 0 which is the 3rd place match in Challonge API
@@ -369,6 +378,7 @@ public class MatchStateService : IDisposable
             // Get fresh data from Challonge
             var participants = await _challongeService.GetParticipantsAsync(_currentTournamentUrl);
             var challongeMatches = await _challongeService.GetMatchesAsync(_currentTournamentUrl);
+            int round = 0;
 
             // Update participant cache - keyed by main participant ID
             _participants = participants.ToDictionary(p => p.Id);
@@ -383,22 +393,29 @@ public class MatchStateService : IDisposable
 
             foreach (var challongeMatch in challongeMatches)
             {
-                var isNew = !_matches.TryGetValue(challongeMatch.Id, out var existingMatch);
-
-                var matchInfo = MapToMatchInfo(challongeMatch, existingMatch);
-
-                if (isNew)
+                if (_matches.TryGetValue(challongeMatch.Id, out var existingMatch))
                 {
-                    _matches[challongeMatch.Id] = matchInfo;
-                    addedMatches.Add(matchInfo);
+                    // 1. Map the new data to a NEW object first
+                    var updatedInfo = MapToMatchInfo(challongeMatch, null); // Pass null to ensure a fresh object
+
+                    // 2. Compare the fresh data against the cached data
+                    if (HasMatchChanged(existingMatch, updatedInfo))
+                    {
+                        // 3. Preserve your local UI state (Tables)
+                        updatedInfo.TableNumber = existingMatch.TableNumber;
+                        updatedInfo.TableAssignedAt = existingMatch.TableAssignedAt;
+
+                        // 4. Update the dictionary and the list
+                        _matches[challongeMatch.Id] = updatedInfo;
+                        updatedMatches.Add(updatedInfo);
+                    }
                 }
-                else if (HasMatchChanged(existingMatch!, matchInfo))
+                else
                 {
-                    // Preserve table assignment when updating
-                    matchInfo.TableNumber = existingMatch!.TableNumber;
-                    matchInfo.TableAssignedAt = existingMatch.TableAssignedAt;
-                    _matches[challongeMatch.Id] = matchInfo;
-                    updatedMatches.Add(matchInfo);
+                    // Handle New Match...
+                    var newMatch = MapToMatchInfo(challongeMatch, null);
+                    _matches[challongeMatch.Id] = newMatch;
+                    addedMatches.Add(newMatch);
                 }
             }
 
@@ -428,8 +445,13 @@ public class MatchStateService : IDisposable
                 });
             }
 
-            // Auto-populate tables from Challonge stations
-            await RefreshStationsAndAutoPopulateTablesAsync();
+            if (_settingsService.GetSettingsAsync().Result.Tables.UseChallongeForTables)
+            {
+                // Auto-populate tables from Challonge stations
+                await RefreshStationsAndAutoPopulateTablesAsync();
+            }
+
+
         }
         finally
         {
@@ -437,9 +459,18 @@ public class MatchStateService : IDisposable
         }
     }
 
-    public (int Round, string Stage) GetCurrentRound()
+    public async Task GetCurrentRound()
     {
-        if (!_matches.Any()) return (0, "Unknown");
+        var settings = _settingsService.GetSettingsAsync().Result;
+
+
+        if (!_matches.Any())
+        {
+            settings.Challonge.CurrentRound = 0;
+            settings.Challonge.CurrentStage = "Unknown";
+            await _settingsService.SaveAsync(settings);
+            return;
+        }
 
         var activeMatches = _matches.Values
             .Where(m => m.State == TournamentMatchState.Open)
@@ -459,17 +490,38 @@ public class MatchStateService : IDisposable
                 .ThenByDescending(m => m.Round)
                 .FirstOrDefault();
 
-            return (lastMatch?.Round ?? 0, lastMatch?.Stage.ToString() ?? "Unknown");
+            settings.Challonge.CurrentRound = lastMatch?.Round ?? 0;
+            settings.Challonge.CurrentStage = lastMatch?.Stage.ToString() ?? "Unknown";
+            await _settingsService.SaveAsync(settings);
+            return;
         }
 
         var currentMatch = activeMatches
-            .OrderByDescending(m => GetStagePriority(m.Stage.ToString())) // Focus on Finals if they exist
-            .ThenBy(m => m.Round == 0 ? 999 : m.Round) // Then look at the earliest round in that stage
-            .First();
+        .Where(m => m.Round > 0)
+        .OrderByDescending(m => GetStagePriority(m.Stage.ToString()))
+        .ThenBy(m => m.Round)
+        .FirstOrDefault();
 
-        return (currentMatch.Round, currentMatch.Stage.ToString());
+        if (currentMatch != null)
+        {
+            settings.Challonge.CurrentRound = currentMatch.Round;
+            _currentRound = currentMatch.Round;
+            settings.Challonge.CurrentStage = currentMatch.Stage.ToString();
+        }
+        var currentLoserBracketMatch = activeMatches
+        .Where(m => m.Round < 0)
+        .OrderByDescending(m => GetStagePriority(m.Stage.ToString()))
+        .ThenByDescending(m => m.Round)
+        .FirstOrDefault();
+
+        if (currentLoserBracketMatch != null)
+        {
+            settings.Challonge.CurrentLoserBracket = currentLoserBracketMatch.Round;
+            _currentLoserBracket = currentLoserBracketMatch.Round;
+        }
+
+        await _settingsService.SaveAsync(settings);
     }
-
     private int GetStagePriority(string stage)
     {
         // Ensure Groups (or "play_off") come before "final" or "bracket"
@@ -684,7 +736,6 @@ public class MatchStateService : IDisposable
             }
 
             // Now apply all changes atomically:
-            // 1. Clear assignments for matches that were assigned but aren't in new assignments
             foreach (var previousMatch in previouslyAssignedMatches)
             {
                 if (!newAssignments.ContainsKey(previousMatch.MatchId))
@@ -695,7 +746,6 @@ public class MatchStateService : IDisposable
                 }
             }
 
-            // 2. Apply new assignments
             foreach (var (matchId, tableNumber) in newAssignments)
             {
                 if (_matches.TryGetValue(matchId, out var match))

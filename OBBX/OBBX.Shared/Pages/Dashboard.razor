@@ -39,7 +39,12 @@
                     <MudItem xs="6">
                         <MudPaper Class="pa-3">
                             <MudText Typo="Typo.body2"> Current Stage - @VM.CurrentStage | Current Round - @VM.CurrentRound</MudText>
+                            @if(VM.CurrentLoserBracket < 0){
+                                <MudText Typo="Typo.body2"> Double Elim Round - @MathF.Abs(VM.CurrentLoserBracket)</MudText>
+                            }
+                            <MudDivider/>
                         </MudPaper>
+                        
                     </MudItem>
                 </MudGrid>
             </MudCardContent>

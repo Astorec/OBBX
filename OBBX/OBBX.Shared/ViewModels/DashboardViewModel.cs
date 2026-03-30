@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using OBBX.Shared.Models;
@@ -15,6 +16,7 @@ public class DashboardViewModel : IDisposable
     private readonly NavigationManager _nav;
     private CancellationTokenSource? _cts;
     private int _lastProcessedRound = -1;
+    private Dictionary<int, int> RoundMatchTracker = new Dictionary<int, int>();
 
     public bool IsLoadingTables { get; private set; } = true;
     public bool ObsConnected { get; private set; }
@@ -22,6 +24,7 @@ public class DashboardViewModel : IDisposable
     public bool ObsReconnecting { get; private set; }
     public string ChallongeUri { get; private set; } = "";
     public int CurrentRound { get; private set; }
+    public int CurrentLoserBracket { get; private set; }
     public string CurrentStage { get; private set; } = "";
     public string SelectedScene { get; set; } = "";
     public string SceneToPush { get; set; } = "";
@@ -55,6 +58,13 @@ public class DashboardViewModel : IDisposable
         ChallongeUri = settings.Challonge?.Uri ?? "";
         LiveFeedTableNumber = settings.Tables?.LiveFeedTableNumber ?? 1;
 
+        if (settings != null)
+        {
+            CurrentRound = settings.Challonge.CurrentRound;
+            CurrentLoserBracket = settings.Challonge.CurrentLoserBracket;
+            CurrentStage = settings.Challonge.CurrentStage;
+        }
+        
         _matchState.MatchesUpdated += HandleMatchesUpdated;
         _matchState.TableAssignmentChanged += HandleTableAssignmentChanged;
 
@@ -113,6 +123,14 @@ public class DashboardViewModel : IDisposable
         _snackbar.Add($"Table {match.TableNumber} pushed to OBS.", Severity.Info);
     }
 
+    /// <summary>
+    /// Get the rounds of the current tournament and update accordingly
+    /// </summary>
+    /// <returns></returns>
+    private async Task GetRounds()
+    {
+
+    }
     private async Task RunConnectionMonitorAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
@@ -129,15 +147,21 @@ public class DashboardViewModel : IDisposable
     private async void HandleMatchesUpdated(object? s, MatchesUpdatedEventArgs e)
     {
         TableMatches = _matchState.GetActiveTableMatches().ToList();
-        var current = _matchState.GetCurrentRound();
-        var currentRoundData = _matchState.GetCurrentRound(); // Using the method we discussed earlier
+        await _matchState.GetCurrentRound();
+        var settings = await _appSettings.GetSettingsAsync();
 
-        if (currentRoundData.Round != _lastProcessedRound)
-        {            
-            CurrentRound = current.Round;
-            CurrentStage = current.Stage.ToString().Replace("Group", "Group ");
-            _lastProcessedRound = current.Round;
-            await UpdateObsOverlayAsync(currentRoundData.Round, currentRoundData.Stage);
+        if (settings.Challonge.CurrentRound != _lastProcessedRound)
+        {
+            RoundMatchTracker.Clear();
+            CurrentRound = settings.Challonge.CurrentRound;
+            CurrentLoserBracket = settings.Challonge.CurrentLoserBracket;
+            CurrentStage = settings.Challonge.CurrentStage.ToString().Replace("Group", "Group ");
+            _lastProcessedRound = settings.Challonge.CurrentRound;
+            await UpdateObsOverlayAsync(settings.Challonge.CurrentRound, settings.Challonge.CurrentStage);
+
+            // Only do this if we are in the group stage, we have a finals bracket to display proper 
+            if (CurrentStage == "Group Stage")
+                await _obsService.StartBracketRotation(RoundMatchTracker);
         }
 
         NotifyChanged();
@@ -145,17 +169,15 @@ public class DashboardViewModel : IDisposable
 
     private async Task UpdateObsOverlayAsync(int round, string stage)
     {
-        // 1. Get the base address (e.g., http://localhost:5181)
         string baseUri = _nav.BaseUri.TrimEnd('/');
 
-        // 2. Build the new URL based on your logic (assuming swiss/bracket logic)
         string type = stage.ToLower().Contains("group") ? "swiss" : "bracket";
 
-        // 3. Push to OBS (Replace "BracketOverlay" with your actual source name in OBS)
-
-        switch(stage.ToLower())
+        switch (stage.ToLower())
         {
             case string s when s.Contains("group"):
+
+
                 await _obsService.UpdateBrowserSourceUrl("Stage", $"{baseUri}/overlay/bracket/{type}/{round}");
                 break;
             case string s when s.Contains("finals"):

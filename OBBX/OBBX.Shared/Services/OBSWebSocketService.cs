@@ -1,12 +1,11 @@
 using System.Text.Json;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MudBlazor;
 using OBBX.Shared.Models;
 using ObsWebSocket.Core;
 using ObsWebSocket.Core.Events.Generated;
 using ObsWebSocket.Core.Protocol.Common;
 using ObsWebSocket.Core.Protocol.Requests;
-using ObsWebSocket.Core.Protocol.Responses;
 
 namespace OBBX.Shared.Services;
 
@@ -21,6 +20,8 @@ public class OBSWebSocketService
     private bool _isAttemptingConnection = false;
     private string _currentScene = string.Empty;
     private List<SceneStub> _scenes = new List<SceneStub>();
+    private List<(int Round, int Page)> _rotationQueue = new();
+    private int _currentIndex = 0;
 
     public OBSWebSocketService(ILogger<OBSWebSocketService> logger, ObsWebSocketClient obsClient)
     {
@@ -257,7 +258,140 @@ public class OBSWebSocketService
             _logger.LogError(ex, "Failed to update browser source URL");
         }
     }
+
+    public async Task PopulateGroupStageScene(Dictionary<int, int> RoundAndMatchCount)
+    {
+        if (!_isConnected) return;
+        string sceneName = "Group Stage";
+        try
+        {
+            var request = new GetSceneItemListRequestData(sceneName);
+            var response = await _obsClient.GetSceneItemListAsync(request);
+
+            if (response?.SceneItems != null)
+            {
+                foreach (var item in response.SceneItems)
+                {
+                    var removeRequest = new RemoveSceneItemRequestData((double)item.SceneItemId, sceneName);
+                    await _obsClient.RemoveSceneItemAsync(removeRequest);
+                }
+            }
+
+            var baseUrl = "http://localhost:5181/overlay/bracket/swiss/";
+
+            foreach (var value in RoundAndMatchCount)
+            {
+                var sourceName = "";
+                var pages = (int)Math.Ceiling((double)value.Value / 32);
+
+
+                for (int i = 1; i <= pages; i++)
+                {
+                    bool show = false;
+                    if (value.Key > 0)
+                    {
+                        sourceName = $"Winners Bracket Round {value.Key:D2} Page {i:D2}";
+                        if (i > 1)
+                            show = true;
+                    }
+                    else
+                        sourceName = $"Losers Bracket Round {MathF.Abs(value.Key)} Page {i:D2}";
+                    var settingsObject = new
+                    {
+                        url = $"{baseUrl}{value.Key}/{i}",
+                        width = 1920,
+                        height = 1080
+                    };
+                    var settingsJson = JsonSerializer.SerializeToElement(settingsObject);
+                    var createRequest = new CreateInputRequestData(sourceName, "browser_source", sceneName, inputSettings: settingsJson);
+                    await _obsClient.CreateInputAsync(createRequest);
+                }
+            }
+
+
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to populate Group Stage Scene");
+        }
+    }
     #endregion
+
+    #region Advanced Scene Switcher Methods
+
+    public async Task UpdateBracketVisibility(int round, int page)
+    {
+        var baseUrl = "http://localhost:5181/overlay/bracket/swiss/";
+        var sceneName = "Group Stage";
+
+        //
+        var response = await _obsClient.GetSceneItemListAsync(new GetSceneItemListRequestData(sceneName));
+        if (response?.SceneItems == null) return;
+
+        bool showingWinners = round > 0;
+
+        foreach (var item in response.SceneItems)
+        {
+            // Safety check for null names
+            if (string.IsNullOrEmpty(item.SourceName)) continue;
+
+            bool isWinnerSource = item.SourceName.Contains("Winners", StringComparison.OrdinalIgnoreCase);
+            bool isLoserSource = item.SourceName.Contains("Losers", StringComparison.OrdinalIgnoreCase);
+
+            if (isWinnerSource || isLoserSource)
+            {
+                bool shouldBeEnabled = isWinnerSource ? showingWinners : !showingWinners;
+
+                // Set the visibility
+                await _obsClient.SetSceneItemEnabledAsync(new SetSceneItemEnabledRequestData(
+                    sceneName: sceneName,
+                    sceneItemId: (double)item.SceneItemId,
+                    sceneItemEnabled: shouldBeEnabled
+                ));
+
+                if (shouldBeEnabled)
+                {
+                    var settings = new { url = $"{baseUrl}{round}/{page}" };
+
+                    // Update URL
+                    await _obsClient.SetInputSettingsAsync(new SetInputSettingsRequestData(
+                        inputName: item.SourceName,
+                        inputSettings: JsonSerializer.SerializeToElement(settings)
+                    ));
+                }
+            }
+        }
+    }
+
+    public async Task StartBracketRotation(Dictionary<int, int> roundData)
+    {
+        while (true)
+        {
+            var sortedRounds = roundData.Keys
+                .OrderByDescending(k => k > 0)
+                .ThenBy(k => k > 0 ? k : Math.Abs(k));
+
+            foreach (var roundKey in sortedRounds)
+            {
+                int matchCount = roundData[roundKey];
+                int pages = (int)Math.Ceiling((double)matchCount / 32);
+
+                for (int p = 1; p <= pages; p++)
+                {
+                    // This updates visibility and the URL
+                    await UpdateBracketVisibility(roundKey, p);
+
+                    await Task.Delay(15000);
+                }
+            }
+
+        }
+
+    }
+
+    #endregion
+
     #region Public Methods
 
     public bool GetLiveStatus

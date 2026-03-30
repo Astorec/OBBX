@@ -1,0 +1,73 @@
+@page "/bracket"
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4" Style="height: 80vh; position: relative; overflow: hidden;">
+    <iframe id="challonge-embed"
+            src="https://challonge.com/@(TournamentUrl)/module?multiplier=1.0&match_width_multiplier=1.0&show_final_results=0"
+            width="100%" height="100%" frameborder="0" scrolling="no" style="border:none;">
+    </iframe>
+</MudContainer>
+
+<script>
+    // This is the ONE global function we will use for everything
+    window.sendChallongeCommand = (action, payload) => {
+        const frame = document.getElementById('challonge-embed');
+        if (frame && frame.contentWindow) {
+            console.log("Sending to Challonge:", action, payload); // Debugging
+            frame.contentWindow.postMessage({
+                ChallongeJSAPIAction: action,
+                parameters: payload
+            }, "*");
+        }
+    };
+</script>
+
+@code {
+    [Parameter] public string TournamentUrl { get; set; } = "a2vlhp4m";
+    private bool _isAutoScrolling = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // 1. Wait for iframe to load (Challonge takes a second to be ready for messages)
+            await Task.Delay(5000);
+
+            // 2. Set Initial Zoom
+            await SetZoom(0.8);
+
+            // 3. Start the Scroll Loop (Fire and forget)
+            _ = StartScrollLoop();
+        }
+    }
+
+    private async Task StartScrollLoop()
+    {
+        while (_isAutoScrolling)
+        {
+            // Use much larger coordinates to ensure movement
+            await JS.InvokeVoidAsync("sendChallongeCommand", "scrollToCoordinates", new
+            {
+                coordinates = new { x = 10, y = 20 }, // Way out in the bracket
+                animationDuration = 2000
+            });
+
+            await Task.Delay(5000);
+
+            // Reset to the very start
+            await JS.InvokeVoidAsync("sendChallongeCommand", "scrollToCoordinates", new
+            {
+                coordinates = new { x = 1, y = 1 },
+                animationDuration = 2000
+            });
+
+            await Task.Delay(5000);
+        }
+    }
+
+    public async Task SetZoom(double scale)
+    {
+        // Use the same function name as defined in the <script> block
+        await JS.InvokeVoidAsync("sendChallongeCommand", "setZoomScale", new { zoomScale = scale });
+    }
+}

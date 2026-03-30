@@ -1,0 +1,92 @@
+@layout EmptyLayout
+@page "/test-overlay"
+@inject IJSRuntime JS
+@inject SettingsService AppSettings
+@rendermode InteractiveAuto
+@using System.Diagnostics
+
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-0 ma-0" Style="width: 100vw; height: 100vh;">
+    <iframe id="challonge-frame" src=@_tournamentSrc width="100%" height="100%" frameborder="0" scrolling="auto"
+            allowtransparency="true"></iframe>
+</MudContainer>
+
+@code {
+    private AppSettings _settings;
+    private string _tournamentSrc;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await AppSettings.GetSettingsAsync();
+        _tournamentSrc = $"{_settings.Challonge?.Uri}/module?multiplier=1.0&match_width_multiplier=1.0&show_final_results=0";
+    }
+    protected override void OnAfterRender(bool firstRender)
+{
+    if (firstRender)
+    {
+        // Fire and forget the task
+        _ = StartSafeScroll(_cts.Token);
+    }
+}
+
+private async Task StartSafeScroll(CancellationToken token)
+{
+    // Hardcoded estimates to test movement
+    double estWidth = 3000; 
+    double estHeight = 2000; 
+    int cols = 3; // Horizontal steps
+    int rows = 2; // Vertical steps
+
+    while (!token.IsCancellationRequested)
+    {
+        for (int r = 0; r < rows; r++)
+        {
+            double y = (estHeight / Math.Max(1, rows - 1)) * r;
+
+            for (int c = 0; c < cols; c++)
+            {
+                double x = (estWidth / Math.Max(1, cols - 1)) * c;
+
+                try 
+                {
+                    Debug.WriteLine($"Attempting Scroll to X:{x} Y:{y}");
+                    
+                    await JS.InvokeVoidAsync("challongeInterop.postMessage", 
+                        "scrollToCoordinates", 
+                        new { coordinates = new { x, y }, animationDuration = 2000 });
+                }
+                catch (Exception ex) 
+                {
+                    Debug.WriteLine($"JS Call Failed: {ex.Message}");
+                }
+
+                await Task.Delay(8000, token);
+            }
+        }
+    }
+}
+
+    private async Task ScrollToSection(int sectionIndex, int totalSections)
+    {
+        // Estimate total width. You might need to adjust this
+        // based on your specific tournament size.
+        double estimatedTotalWidth = 3000;
+
+        // Calculate the X coordinate
+        // Section 0 = 0, Section 1 = 1000, Section 2 = 2000, etc.
+        double targetX = (estimatedTotalWidth / (totalSections - 1)) * sectionIndex;
+
+
+        await JS.InvokeVoidAsync("challongeInterop.postMessage", "scrollToCoordinates", new
+        {
+            coordinates = new { x = targetX, y = 0 }, // Keep Y at 0 unless you have a massive vertical bracket
+            animationDuration = 1000
+        });
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel(); // Stop the loop when user leaves the page
+        _cts.Dispose();
+    }
+}

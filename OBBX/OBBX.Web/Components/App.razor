@@ -21,4 +21,26 @@
     <script src="_framework/blazor.web.js"></script>
 </body>
 
+<script>
+    window.challongeInterop = {
+        metadata: { height: 2000 }, // Default height
+        postMessage: function (action, parameters) {
+            const iframe = document.getElementById('challonge-frame');
+            if (iframe && iframe.contentWindow) {
+                console.log("Sending to Challonge:", action, parameters);
+                iframe.contentWindow.postMessage({
+                    ChallongeJSAPIAction: action,
+                    parameters: parameters
+                }, "*");
+            }
+        }
+    };
+
+    window.addEventListener("message", (e) => {
+        if (e.data && e.data.challongeEvent === "bracketHeightChanged") {
+            window.challongeInterop.metadata.height = e.data.height;
+        }
+    }, false);
+</script>
+
 </html>

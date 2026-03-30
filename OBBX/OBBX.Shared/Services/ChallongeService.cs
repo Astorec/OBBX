@@ -63,6 +63,8 @@ public class ChallongeService
     /// <returns></returns>
     public async Task<List<Participant>> GetParticipantsAsync(string tournamentUrl, bool forceRefresh = false)
     {
+        var settings = await _settingsService.GetSettingsAsync();
+
         if (_client == null)
         {
             await InitChallongeClientAsync();
@@ -81,6 +83,7 @@ public class ChallongeService
 
         var participants = await _client!.GetParticipantsAsync(tournamentIdentifier);
         _participants = participants.ToList();
+        settings.Challonge.playerCount = _participants.Count();
         return _participants;
     }
 
@@ -132,6 +135,14 @@ public class ChallongeService
             // Check for successful response
             if (!response.IsSuccessful)
             {
+                if(response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Stations endpoint not found. This may be due to an outdated API version. Status Code: {response.StatusCode}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error fetching stations: {response.StatusCode} - {response.Content}");
+                }
                 System.Diagnostics.Debug.WriteLine($"Error fetching stations: {response.StatusCode} - {response.Content}");
                 return new List<Station>();
             }
