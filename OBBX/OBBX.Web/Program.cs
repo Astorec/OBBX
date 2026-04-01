@@ -54,6 +54,7 @@ builder.Services.AddObsWebSocketClient(options =>
 
 builder.Services.AddSingleton<OBSWebSocketService>();
 builder.Services.AddSingleton<ChallongeService>();
+builder.Services.AddSingleton<CSVService>();
 builder.Services.AddSingleton<MatchStateService>();
 builder.Services.AddScoped<JsConsole>();
 // Add device-specific services used by the OBBX.Shared project
@@ -65,6 +66,10 @@ builder.Services.AddTransient<TablesViewModel>();
 builder.Services.AddTransient<SettingsViewModel>();
 
 var app = builder.Build();
+
+// Initialize CSV service from persisted settings on app start (no manual refresh needed)
+var csvService = app.Services.GetRequiredService<CSVService>();
+await csvService.InitializeAsync();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

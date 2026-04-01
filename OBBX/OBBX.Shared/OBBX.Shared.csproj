@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="Challonge-DotNet" Version="3.0.3" />
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.1" />
     <PackageReference Include="MudBlazor" Version="8.15.0" />
     <PackageReference Include="ObsWebSocket.Core" Version="0.1.5" />

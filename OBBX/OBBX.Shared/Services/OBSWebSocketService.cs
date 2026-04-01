@@ -12,6 +12,7 @@ namespace OBBX.Shared.Services;
 public class OBSWebSocketService
 {
     private readonly ILogger<OBSWebSocketService> _logger;
+    private readonly CSVService _csvService;
     private readonly ObsWebSocketClient _obsClient;
     private bool _isConnected = false;
     private bool _isLive = false;
@@ -22,10 +23,12 @@ public class OBSWebSocketService
     private List<SceneStub> _scenes = new List<SceneStub>();
     private List<(int Round, int Page)> _rotationQueue = new();
     private int _currentIndex = 0;
+    private Dictionary<string, DeckProfile> _onStreamProfiles = new Dictionary<string, DeckProfile>();
 
-    public OBSWebSocketService(ILogger<OBSWebSocketService> logger, ObsWebSocketClient obsClient)
+    public OBSWebSocketService(ILogger<OBSWebSocketService> logger, CSVService cSVService, ObsWebSocketClient obsClient)
     {
         _logger = logger;
+        _csvService = cSVService;
         _obsClient = obsClient;
         _obsClient.Connected += OnObsConnected;
         _obsClient.Disconnected += OnObsDisconnected;
@@ -40,6 +43,7 @@ public class OBSWebSocketService
 
         if (_isInitialized)
         {
+            await _csvService.InitializeAsync();
             var scenes = await _obsClient.GetSceneListAsync();
             _scenes = scenes?.Scenes?.ToList() ?? new List<SceneStub>();
             _currentScene = _scenes.Count > 0 ? _scenes[0].SceneName ?? string.Empty : string.Empty;
@@ -173,35 +177,25 @@ public class OBSWebSocketService
 
         try
         {
-
-            // Update Player 1 Name
-            var inputSettingsRequest = new SetInputSettingsRequestData
-            {
-                InputName = $"Player 1",
-                InputSettings = JsonDocument.Parse($"{{ \"text\": \"{table.Player1Name ?? "N/A"}\" }}").RootElement
-            };
-
-            await _obsClient.SetInputSettingsAsync(inputSettingsRequest);
-
-            // Update Player 2 Name
-            var inputSettingsRequest2 = new SetInputSettingsRequestData
-            {
-                InputName = $"Player 2",
-                InputSettings = JsonDocument.Parse($"{{ \"text\": \"{table.Player2Name ?? "N/A"}\" }}").RootElement
-            };
-
-            await _obsClient.SetInputSettingsAsync(inputSettingsRequest2);
+            // 1. Use the helper to update names safely (prevents JSON crashes)
+            await UpdateObsText("Player 1", table.Player1Name ?? "N/A");
+            await UpdateObsText("Player 2", table.Player2Name ?? "N/A");
 
             _logger.LogInformation("Updated player names for Table {TableNumber}", table.TableNumber);
 
+            // 2. Trigger the profile update (which we optimized in the previous step)
+            if (!string.IsNullOrWhiteSpace(table.Player1Name) || !string.IsNullOrWhiteSpace(table.Player2Name))
+            {
+                await UpdateDeckProfiles(table.Player1Name, table.Player2Name);
+            }
+
+            // 3. Switch scene
             await SwitchScenes($"Table {table.TableNumber}");
         }
         catch (ObsWebSocketException ex)
         {
             _logger.LogError(ex, "Error updating player names: {ErrorMessage}", ex.Message);
-
-            await DisconnectAsync();
-            await ConnectWithRetryAsync(CancellationToken.None);
+            await ReconnectAsync();
         }
     }
 
@@ -226,6 +220,52 @@ public class OBSWebSocketService
         }
     }
 
+    private async Task UpdateDeckProfiles(string player1, string player2)
+    {
+        // Get the new profiles required
+        var newProfiles = _csvService.GetCachedProfiles()
+            .Where(p => p.Key.Equals(player1, StringComparison.OrdinalIgnoreCase) ||
+                        p.Key.Equals(player2, StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
+
+
+        if (_onStreamProfiles.SequenceEqual(newProfiles)) return;
+
+        // Update the new profiles if we need to
+        _onStreamProfiles = newProfiles;
+
+        // Loop through
+        foreach (var p in _onStreamProfiles)
+        {
+            // Determine the OBS prefix (Player 01 or Player 02) based on the name match
+            string obsPrefix = p.Key.Equals(player1, StringComparison.OrdinalIgnoreCase) ? "01" : "02";
+            var profile = p.Value;
+
+            string mainDeck = BuildDeckString(profile?.Bey01, profile?.Bey02, profile?.Bey03);
+            string sideDeck = BuildDeckString(profile?.Bey04, profile?.Bey05);
+
+            await UpdateObsText($"Player {obsPrefix} Beys", mainDeck);
+            await UpdateObsText($"Player {obsPrefix} Side Beys", sideDeck);
+        }
+    }
+
+    private string BuildDeckString(params string?[] beys)
+    {
+        var validBeys = beys.Where(b => !string.IsNullOrWhiteSpace(b)).Select(b => $"- {b}");
+        return string.Join("\n", validBeys);
+    }
+
+    private async Task UpdateObsText(string inputName, string text)
+    {
+        var jsonString = JsonSerializer.Serialize(new { text });
+        var request = new SetInputSettingsRequestData
+        {
+            InputName = inputName,
+            InputSettings = JsonDocument.Parse(jsonString).RootElement
+        };
+        await _obsClient.SetInputSettingsAsync(request);
+    }
+
     private void OnCurrentProgramSceneChanged(object? sender, CurrentProgramSceneChangedEventArgs e)
     {
         _logger.LogInformation("Event Handler: Program scene changed to {SceneName}", e.EventData.SceneName);
@@ -235,6 +275,11 @@ public class OBSWebSocketService
         }
     }
 
+    private async Task ReconnectAsync()
+    {
+        await DisconnectAsync();
+        await ConnectWithRetryAsync(CancellationToken.None);
+    }
     #endregion
 
     #region Source Methods

@@ -31,7 +31,9 @@ public class OBSWebSocketSettings
 
 public class CsvImportSettings
 {
-    public string? LastImportPath {get; set;} = string.Empty;
+    public string? ImportPath {get; set;} = string.Empty;
+    public bool IsBrowserUpload {get; set;} = false;
+    public string? BrowserFileName {get; set;} = string.Empty;
 }
 
 public class TableSettings

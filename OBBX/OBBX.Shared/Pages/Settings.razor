@@ -39,12 +39,10 @@
             <MudCard>
                 <MudText Typo="Typo.h6" Class="pa-4">CSV Blader Data Import</MudText>
                 <MudCardContent>
-                    <!-- Placeholder for future CSV import settings from file diectory -->
-                    <MudText Typo="Typo.body2">Import player data from a CSV file located in a specified directory.
-                        This feature will allow you to easily manage and update player information for your tournaments.
-                    </MudText>
+                    <MudTextField Value="@VM.CsvImportDisplay" Label="CSV File Path" Variant="Variant.Outlined" FullWidth="true" Disabled="true" />         
+                    <!-- Browser file input for web (Firefox) -->
+                    <InputFile OnChange="OnCsvFileSelected" accept=".csv" class="mt-2" />
                 </MudCardContent>
-
             </MudCard>
         </MudItem>
     </MudGrid>
@@ -55,6 +53,11 @@
 </MudContainer>
 
 @code {
+    private async Task OnCsvFileSelected(InputFileChangeEventArgs e)
+    {
+        await VM.ImportCsvFromBrowser(e);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         VM.OnChanged += () => InvokeAsync(StateHasChanged);

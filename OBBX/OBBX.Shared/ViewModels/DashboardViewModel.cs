@@ -58,7 +58,7 @@ public class DashboardViewModel : IDisposable
         ChallongeUri = settings.Challonge?.Uri ?? "";
         LiveFeedTableNumber = settings.Tables?.LiveFeedTableNumber ?? 1;
 
-        if (settings != null)
+        if (settings?.Challonge != null)
         {
             CurrentRound = settings.Challonge.CurrentRound;
             CurrentLoserBracket = settings.Challonge.CurrentLoserBracket;
