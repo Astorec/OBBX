@@ -20,13 +20,13 @@ show bracket information on a screen in a better format for viewers.
 - [x] Add Table selection and prompt to push match info to selected scene
 - [x] Add error handling and user feedback for failed connections
 - [ ] Add player preview information on dashboard
-- [ ] Display each match as a Table and click to push to OBS
+- [x] Display each match as a Table and click to push to OBS
 - [x] Add Break Scene functionality
 - [x] Cache Challonge data locally to reduce API calls
 - [x] Update Matches automatically when changed in Challonge
 - [ ] Have a manual complete match button to get next match info and mark locally until Challonge is refreshed
-- [ ] Add CSV Import for Beyblade Deck Lists
-- [ ] Match CSV to player names form Challonge and display deck info on stream
+- [x] Add CSV Import for Beyblade Deck Lists
+- [x] Match CSV to player names form Challonge and display deck info on stream
 - [ ] Manual Edit of Player Deck Info on Dashboard
 - [x] Add Table Configurations
 - [x] Set number of Tables (Stations) in use
