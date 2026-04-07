@@ -64,6 +64,7 @@ builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddTransient<DashboardViewModel>();
 builder.Services.AddTransient<TablesViewModel>();
 builder.Services.AddTransient<SettingsViewModel>();
+builder.Services.AddTransient<PlayerDeckProfileViewModel>();
 
 var app = builder.Build();
 

@@ -1,0 +1,151 @@
+@page "/player-deck-profile"
+@using OBBX.Shared.ViewModels
+@inject PlayerDeckProfileViewModel VM
+
+<style>
+    .sticky-header-wrapper {
+        position: fixed;
+        top: 60px;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: var(--mud-palette-background);
+        padding: 16px;
+        box-sizing: border-box;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .page-content-wrapper {
+        margin-top: 150px;
+    }
+</style>
+
+<div class="sticky-header-wrapper">
+    <div class="d-flex align-center gap-3 mb-3">
+        <MudText Typo="Typo.h5">Deck Profiles</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!HasChanges)"
+                   OnClick="@SaveAllAsync">
+            Save Changes
+        </MudButton>
+        @if (HasChanges)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Warning">You have unsaved changes</MudText>
+        }
+    </div>
+    <MudTextField @bind-Value="SearchString" Placeholder="Search player names..." 
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                  Variant="Variant.Outlined" Dense="true" />
+</div>
+
+<div class="page-content-wrapper">
+    <MudGrid>
+    <MudItem xs="12">
+        <MudCard>
+            <MudCardContent>
+                <MudTable T="KeyValuePair<string, DeckProfile>" Items="@FilteredDeckProfiles" Dense="true" @ref="table">
+                    <HeaderContent>
+                        <MudTh>
+                            <MudTableSortLabel SortBy="new Func<KeyValuePair<string, DeckProfile>, object>(x => x.Key)">
+                                Player</MudTableSortLabel>
+                            </MudTh>
+                            <MudTh>
+                                <MudTableSortLabel
+                                    SortBy="new Func<KeyValuePair<string, DeckProfile>, object>(x => x.Value.Bey01)">Bey 01
+                                </MudTableSortLabel>
+                            </MudTh>
+                            <MudTh>
+                                <MudTableSortLabel
+                                    SortBy="new Func<KeyValuePair<string, DeckProfile>, object>(x => x.Value.Bey02)">Bey 02
+                                </MudTableSortLabel>
+                            </MudTh>
+                            <MudTh>
+                                <MudTableSortLabel
+                                    SortBy="new Func<KeyValuePair<string, DeckProfile>, object>(x => x.Value.Bey03)">Bey 03
+                                </MudTableSortLabel>
+                            </MudTh>
+                            <MudTh>
+                                <MudTableSortLabel
+                                    SortBy="new Func<KeyValuePair<string, DeckProfile>, object>(x => x.Value.Bey04)">Bey 04
+                                </MudTableSortLabel>
+                            </MudTh>
+                            <MudTh>
+                                <MudTableSortLabel
+                                    SortBy="new Func<KeyValuePair<string, DeckProfile>, object>(x => x.Value.Bey05)">Bey 05
+                                </MudTableSortLabel>
+                            </MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Player">@context.Key</MudTd>
+                            <MudTd DataLabel="Bey 01">
+                                <MudTextField Value="context.Value.Bey01" ValueChanged="@((string value) => { context.Value.Bey01 = value; OnFieldChanged(); })" Dense="true" Variant="Variant.Outlined" />
+                            </MudTd>
+                            <MudTd DataLabel="Bey 02">
+                                <MudTextField Value="context.Value.Bey02" ValueChanged="@((string value) => { context.Value.Bey02 = value; OnFieldChanged(); })" Dense="true" Variant="Variant.Outlined" />
+                            </MudTd>
+                            <MudTd DataLabel="Bey 03">
+                                <MudTextField Value="context.Value.Bey03" ValueChanged="@((string value) => { context.Value.Bey03 = value; OnFieldChanged(); })" Dense="true" Variant="Variant.Outlined" />
+                            </MudTd>
+                            <MudTd DataLabel="Bey 04">
+                                <MudTextField Value="context.Value.Bey04" ValueChanged="@((string value) => { context.Value.Bey04 = value; OnFieldChanged(); })" Dense="true" Variant="Variant.Outlined" />
+                            </MudTd>
+                            <MudTd DataLabel="Bey 05">
+                                <MudTextField Value="context.Value.Bey05" ValueChanged="@((string value) => { context.Value.Bey05 = value; OnFieldChanged(); })" Dense="true" Variant="Variant.Outlined" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+</div>
+
+@code {
+    private MudTable<KeyValuePair<string, DeckProfile>> table;
+    private IEnumerable<KeyValuePair<string, DeckProfile>> DeckProfiles;
+    private Dictionary<string, DeckProfile> OriginalProfiles;
+    private string SearchString = "";
+    private bool HasChanges = false;
+
+    private IEnumerable<KeyValuePair<string, DeckProfile>> FilteredDeckProfiles
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(SearchString))
+                return DeckProfiles;
+            
+            return DeckProfiles.Where(x => x.Key.Contains(SearchString, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DeckProfiles = await VM.LoadPlayerDeckProfilesAsync();
+        // Store original values for comparison
+        OriginalProfiles = new Dictionary<string, DeckProfile>(DeckProfiles);
+    }
+
+    private void MarkAsChanged()
+    {
+        HasChanges = true;
+    }
+
+    private void OnFieldChanged()
+    {
+        HasChanges = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SaveAllAsync()
+    {
+        foreach (var item in DeckProfiles)
+        {
+            await VM.SaveProfileAsync(item.Key, item.Value);
+        }
+        
+        // Refresh original state
+        OriginalProfiles = new Dictionary<string, DeckProfile>(DeckProfiles);
+        HasChanges = false;
+        StateHasChanged();
+    }
+}

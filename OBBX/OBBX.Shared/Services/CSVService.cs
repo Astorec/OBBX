@@ -139,4 +139,51 @@ private static async Task<Dictionary<string, DeckProfile>> ImportCSVAsync(TextRe
         _csvImportPath = importPath;
         _cachedProfiles = await ImportCSVAsync();
     }
+
+    public async Task UpdateKeyPairAsync(string username, DeckProfile profile)
+    {
+        _cachedProfiles[username] = profile;
+        await SaveCSVAsync(_cachedProfiles);
+    }
+
+    public async Task SaveCSVAsync(Dictionary<string, DeckProfile> profiles)
+    {
+        if (string.IsNullOrEmpty(_csvImportPath))
+        {
+            throw new InvalidOperationException("CSV import path is not set.");
+        }
+
+        using var writer = new StreamWriter(_csvImportPath);
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            HasHeaderRecord = true
+        };
+        using var csv = new CsvWriter(writer, config);
+
+        // Write header
+        csv.WriteField("WBO_Username");
+        csv.WriteField("Bey01");
+        csv.WriteField("Bey02");
+        csv.WriteField("Bey03");
+        csv.WriteField("Bey04");
+        csv.WriteField("Bey05");
+        await csv.NextRecordAsync();
+
+        // Write records
+        foreach (var kvp in profiles)
+        {
+            csv.WriteField(kvp.Key); // Username
+            csv.WriteField(kvp.Value.Bey01);
+            csv.WriteField(kvp.Value.Bey02);
+            csv.WriteField(kvp.Value.Bey03);
+            csv.WriteField(kvp.Value.Bey04);
+            csv.WriteField(kvp.Value.Bey05);
+            await csv.NextRecordAsync();
+        }
+
+        await writer.FlushAsync();
+
+        // Update cache after saving
+        _cachedProfiles = new Dictionary<string, DeckProfile>(profiles);
+    }
 }

@@ -13,6 +13,7 @@
         <MudButton Href="/" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AutoAwesomeMosaic">Dashboard
         </MudButton>
         <MudButton Href="/tables" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.HotTub">Tables</MudButton>
+        <MudButton href="/player-deck-profile" Icon="@Icons.Material.Filled.ViewList">Deck Profiles</MudButton>
         <MudButton Href="/settings" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.Settings">Settings
         </MudButton>
     </MudAppBar>
@@ -31,10 +32,11 @@
 
             if (!ChallongeService.IsConfigured)
             {
-                Snackbar.Add($"{ChallongeService.ConfigurationError} Please check your settings.", 
-                    Severity.Warning, config => 
+                Snackbar.Add($"{ChallongeService.ConfigurationError} Please check your settings.",
+                    Severity.Warning, config =>
                 {
-                    config.OnClick = snackbar => {
+                    config.OnClick = snackbar =>
+                    {
                         Nav.NavigateTo("/settings");
                         return Task.CompletedTask;
                     };

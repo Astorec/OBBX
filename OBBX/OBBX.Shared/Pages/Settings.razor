@@ -1,4 +1,5 @@
 @page "/settings"
+@rendermode InteractiveServer
 @using OBBX.Shared.ViewModels
 @inject SettingsViewModel VM
 
@@ -9,13 +10,13 @@
             <MudCard>
                 <MudText Typo="Typo.h6" Class="pa-4">Challonge Settings</MudText>
                 <MudCardContent>
-                    <MudTextField @bind-Value="VM.Settings.Challonge.ApiKey" Label="API Key" Variant="Variant.Outlined" FullWidth="true"
+                    <MudTextField @bind-Value="VM.Settings.Challonge.ApiKey" @bind-Value:event="onchange" Label="API Key" Variant="Variant.Outlined" FullWidth="true"
                         Adornment="Adornment.End" AdornmentIcon="@VM.ApiKeyInputIcon"
                         OnAdornmentClick="VM.ToggleApiKeyVisibility" AdornmentAriaLabel="Show API Key" InputType="@VM.ApiKeyInput" />
-                    <MudTextField @bind-Value="VM.Settings.Challonge.Username" Label="Username" Variant="Variant.Outlined" FullWidth="true"
+                    <MudTextField @bind-Value="VM.Settings.Challonge.Username" @bind-Value:event="onchange" Label="Username" Variant="Variant.Outlined" FullWidth="true"
                         Class="mt-4" />
-                    <MudTextField @bind-Value="VM.Settings.Challonge.Uri" Label="URL" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
-                    <MudTextField @bind-Value="VM.Settings.Challonge.RefreshIntervalSeconds" T="int" Label="Refresh Interval (seconds)" Variant="Variant.Outlined" FullWidth="true"
+                    <MudTextField @bind-Value="VM.Settings.Challonge.Uri" @bind-Value:event="onchange" Label="URL" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
+                    <MudTextField @bind-Value="VM.Settings.Challonge.RefreshIntervalSeconds" @bind-Value:event="onchange" T="int" Label="Refresh Interval (seconds)" Variant="Variant.Outlined" FullWidth="true"
                         Class="mt-4" />
                 </MudCardContent>
             </MudCard>
@@ -26,9 +27,9 @@
             <MudCard>
                 <MudText Typo="Typo.h6" Class="pa-4">OBS Websocket Settings</MudText>
                 <MudCardContent>
-                    <MudTextField @bind-Value="VM.Settings.OBSWebSocket.Address" Label="Address" Variant="Variant.Outlined" FullWidth="true" />
-                    <MudTextField @bind-Value="VM.Settings.OBSWebSocket.Port" T="int" Label="Port" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
-                    <MudTextField @bind-Value="VM.Settings.OBSWebSocket.Key" T="string" Label="Server Password" Variant="Variant.Outlined" FullWidth="true"
+                    <MudTextField @bind-Value="VM.Settings.OBSWebSocket.Address" @bind-Value:event="onchange" Label="Address" Variant="Variant.Outlined" FullWidth="true" />
+                    <MudTextField @bind-Value="VM.Settings.OBSWebSocket.Port" @bind-Value:event="onchange" T="int" Label="Port" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
+                    <MudTextField @bind-Value="VM.Settings.OBSWebSocket.Key" @bind-Value:event="onchange" T="string" Label="Server Password" Variant="Variant.Outlined" FullWidth="true"
                         Class="mt-4" Adornment="Adornment.End" AdornmentIcon="@VM.PasswordInputIcon"
                         OnAdornmentClick="VM.TogglePasswordVisibility" AdornmentAriaLabel="Show Password"
                         InputType="@VM.PasswordInput" />

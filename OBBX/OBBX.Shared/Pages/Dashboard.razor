@@ -20,10 +20,11 @@
                 <MudGrid>
                     <MudItem xs="6">
                         <MudPaper Class="pa-3 d-flex align-center gap-2">
-                                <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@VM.ObsStatusColor" Size="Size.Small" />
-                                <MudText Typo="Typo.body2">OBS WebSocket</MudText>
-                                <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@VM.ObsLiveColor" Size="Size.Small" />
-                                <MudText Typo="Typo.body2">OBS Live Status</MudText>
+                            <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@VM.ObsStatusColor"
+                                     Size="Size.Small" />
+                            <MudText Typo="Typo.body2">OBS WebSocket</MudText>
+                            <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@VM.ObsLiveColor" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">OBS Live Status</MudText>
                         </MudPaper>
                     </MudItem>
                     <MudItem xs="6">
@@ -38,105 +39,104 @@
                     </MudItem>
                     <MudItem xs="6">
                         <MudPaper Class="pa-3">
-                            <MudText Typo="Typo.body2"> Current Stage - @VM.CurrentStage | Current Round - @VM.CurrentRound</MudText>
-                            @if(VM.CurrentLoserBracket < 0){
-                                <MudText Typo="Typo.body2"> Double Elim Round - @MathF.Abs(VM.CurrentLoserBracket)</MudText>
-                            }
-                            <MudDivider/>
-                        </MudPaper>
+                            <MudText Typo="Typo.body2"> Current Stage - @VM.CurrentStage | Current Round -
+                                @VM.CurrentRound</MudText>
+                                @if (VM.CurrentLoserBracket < 0)
+                                {
+                                    <MudText Typo="Typo.body2"> Double Elim Round - @MathF.Abs(VM.CurrentLoserBracket)</MudText>
+                                }
+                                <MudDivider />
+                            </MudPaper>
                         
-                    </MudItem>
-                </MudGrid>
-            </MudCardContent>
-        </MudCard>
-    </MudItem>
-
-    <!-- Active Scene -->
-    <MudItem xs="12" md="6" Class="mt-4">
-        <MudCard>
-            <MudCardContent>
-                <MudText Typo="Typo.h2">OBS Scenes</MudText>
-                <MudText Typo="Typo.body1">Current Scene: @VM.SelectedScene</MudText>
-                <MudSelect T="string" Label="Switch Scene" Variant="Variant.Outlined" Class="mt-2" FullWidth="true"
-                    @bind-Value="VM.SceneToPush">
-                    @foreach (var scene in VM.Scenes)
-                    {
-                        <MudSelectItem Value="@scene.SceneName">@scene.SceneName</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudButton OnClick="@(() => VM.PushSceneAsync())" Variant="Variant.Outlined" Color="Color.Primary" Class="mt-2"
-                    FullWidth="true">
-                    Switch Scene
-                </MudButton>
-            </MudCardContent>
-        </MudCard>
-    </MudItem>
-    <!-- Tables -->
-        <MudItem xs="12" md="6" Class="mt-4">
-        <MudCard>
-            <MudCardContent>
-                <MudText Typo="Typo.h2">Stream Buttons</MudText>
-                @if (VM.IsLoadingTables)
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Loading tables...</MudText>
-                }
-                else
-                {
-                    var tableMatch = VM.TableMatches.FirstOrDefault(m => m.TableNumber == VM.LiveFeedTableNumber);
-                    <MudGrid>
-                        <MudItem xs="12" Class="mt-4">
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">Caster Feeds</MudText>
-                        </MudItem>
-                        <MudItem xs="12" sm="6" Class="mt-4">
-                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
-                                Style="height: auto; padding: 16px;"
-                                OnClick="@(() => VM.PushSceneAsync("Caster Cam"))">
-                                <div class="d-flex flex-column align-center" style="width: 100%;">
-                                    <MudText Typo="Typo.h6">Caster Cam</MudText>
-                                </div>
-                            </MudButton>
-                        </MudItem>
-                        <MudItem xs="12" sm="6" Class="mt-4">
-                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
-                                Style="height: auto; padding: 16px;"
-                                OnClick="@(() => VM.PushSceneAsync("Intermission"))">
-                                <div class="d-flex flex-column align-center" style="width: 100%;">
-                                    <MudText Typo="Typo.h6">Intermission</MudText>
-                                </div>
-                            </MudButton>
                         </MudItem>
                     </MudGrid>
-                    <MudSpacer/>
-                    <MudGrid>
-                        <MudItem xs="12"Class="mt-4">
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">Player Feeds</MudText>
-                        </MudItem>
-                             <MudItem xs="12" sm="6" Class="mt-4">
-                                @if(tableMatch != null)
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Active Scene -->
+        <MudItem xs="12" md="6" Class="mt-4">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h2">OBS Scenes</MudText>
+                    <MudText Typo="Typo.body1">Current Scene: @VM.SelectedScene</MudText>
+                    <MudSelect T="string" Label="Switch Scene" Variant="Variant.Outlined" Class="mt-2" FullWidth="true"
+                               @bind-Value="VM.SceneToPush">
+                        @foreach (var scene in VM.Scenes)
+                        {
+                            <MudSelectItem Value="@scene.SceneName">@scene.SceneName</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudButton OnClick="@(() => VM.PushSceneAsync())" Variant="Variant.Outlined" Color="Color.Primary"
+                               Class="mt-2" FullWidth="true">
+                        Switch Scene
+                    </MudButton>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <!-- Tables -->
+        <MudItem xs="12" md="6" Class="mt-4">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h2">Stream Buttons</MudText>
+                    @if (VM.IsLoadingTables)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Loading tables...</MudText>
+                    }
+                    else
+                    {
+                        var tableMatch = VM.TableMatches.FirstOrDefault(m => m.TableNumber == VM.LiveFeedTableNumber);
+                        <MudGrid>
+                            <MudItem xs="12" Class="mt-4">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Caster Feeds</MudText>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" Class="mt-4">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                           Style="height: auto; padding: 16px;" OnClick="@(() => VM.PushSceneAsync("Caster Cam"))">
+                                    <div class="d-flex flex-column align-center" style="width: 100%;">
+                                        <MudText Typo="Typo.h6">Caster Cam</MudText>
+                                    </div>
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" Class="mt-4">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                           Style="height: auto; padding: 16px;" OnClick="@(() => VM.PushSceneAsync("Intermission"))">
+                                    <div class="d-flex flex-column align-center" style="width: 100%;">
+                                        <MudText Typo="Typo.h6">Intermission</MudText>
+                                    </div>
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
+                        <MudSpacer />
+                        <MudGrid>
+                            <MudItem xs="12" Class="mt-4">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Player Feeds</MudText>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" Class="mt-4">
+                                @if (tableMatch != null)
                                 {
                                     var player1 = tableMatch.Player1Name ?? "---";
                                     var player2 = tableMatch.Player2Name ?? "---";
-                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
-                                    Style="height: auto; padding: 16px;" 
-                                    OnClick="@(() => VM.SelectTableAsync(tableMatch))">
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                               Style="height: auto; padding: 16px;" OnClick="@(() => VM.SelectTableAsync(tableMatch))">
                                   
-                                    <div class="d-flex flex-column align-center" style="width: 100%;">
-                                        <MudText Typo="Typo.h6">Live Table</MudText>
-                                        <MudText Typo="Typo.body2">@player1 vs @player2</MudText>
-                                    </div>
-                                </MudButton>
+                                        <div class="d-flex flex-column align-center" style="width: 100%;">
+                                            <MudText Typo="Typo.h6">Live Table</MudText>
+                                            <MudText Typo="Typo.body2">@player1 vs @player2</MudText>
+                                        </div>
+                                    </MudButton>
                                 }
                                 else
                                 {
                                     <MudPaper Class="pa-3">
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">No match assigned to live feed table.</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">No match assigned to live feed table.
+                                        </MudText>
                                     </MudPaper>
                                 }
                             </MudItem>
                             <MudItem xs="12" sm="6" Class="mt-4">
                                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
-                                    Style="height: auto; padding: 16px;"
-                                    OnClick="@(() => VM.PushSceneAsync("Player 1 Setup"))">
+                                           Style="height: auto; padding: 16px;" OnClick="@(() => VM.PushSceneAsync("Player 1 Setup"))">
                                     <div class="d-flex flex-column align-center" style="width: 100%;">
                                         <MudText Typo="Typo.h6">Player 1 Setup Cam</MudText>
                                     </div>
@@ -144,36 +144,46 @@
                             </MudItem>
                             <MudItem xs="12" sm="6" Class="mt-4">
                                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
-                                    Style="height: auto; padding: 16px;"
-                                    OnClick="@(() => VM.PushSceneAsync("Player 2 Setup"))">
+                                           Style="height: auto; padding: 16px;" OnClick="@(() => VM.PushSceneAsync("Player 2 Setup"))">
                                     <div class="d-flex flex-column align-center" style="width: 100%;">
                                         <MudText Typo="Typo.h6">Player 2 Setup Cam</MudText>
                                     </div>
                                 </MudButton>
                             </MudItem>
-                               <MudItem xs="12" sm="6" Class="mt-4">
+                            <MudItem xs="12" sm="6" Class="mt-4">
                                 <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
-                                    Style="height: auto; padding: 16px;"
-                                    OnClick="@(() => VM.PushSceneAsync("Player 1 & 2 Setup"))">
+                                           Style="height: auto; padding: 16px;"
+                                           OnClick="@(() => VM.PushSceneAsync("Player 1 & 2 Setup"))">
                                     <div class="d-flex flex-column align-center" style="width: 100%;">
                                         <MudText Typo="Typo.h6">Player 1 & 2 Setup Cam</MudText>
                                     </div>
                                 </MudButton>
-                            </MudItem>                                 
-                    </MudGrid>
-                }
-            </MudCardContent>
-        </MudCard>
-    </MudItem>
+                            </MudItem>
+                        </MudGrid>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
 
-</MudGrid>
+    </MudGrid>
 
 @code {
+    private Action _stateHasChangedHandler;
+
     protected override async Task OnInitializedAsync()
     {
         // Bind the refresh event
-        VM.OnChanged += () => InvokeAsync(StateHasChanged);
+        _stateHasChangedHandler = () => InvokeAsync(StateHasChanged);
+        VM.OnChanged += _stateHasChangedHandler;
         await VM.InitializeAsync();
+    }
+
+    // ADD THIS - Handles when navigating back to this page
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        // Re-initialize or refresh data when coming back to this page
+        await VM.LoadInitialDataAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -184,5 +194,12 @@
         }
     }
 
-    public void Dispose() => VM.Dispose();
+    public ValueTask DisposeAsync()
+    {
+        VM.OnChanged -= () => InvokeAsync(StateHasChanged);
+        VM.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    public void Dispose() { }
 }

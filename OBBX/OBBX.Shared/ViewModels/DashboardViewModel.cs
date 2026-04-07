@@ -64,7 +64,7 @@ public class DashboardViewModel : IDisposable
             CurrentLoserBracket = settings.Challonge.CurrentLoserBracket;
             CurrentStage = settings.Challonge.CurrentStage;
         }
-        
+
         _matchState.MatchesUpdated += HandleMatchesUpdated;
         _matchState.TableAssignmentChanged += HandleTableAssignmentChanged;
 
@@ -133,13 +133,30 @@ public class DashboardViewModel : IDisposable
     }
     private async Task RunConnectionMonitorAsync(CancellationToken ct)
     {
+        var previousConnected = ObsConnected;
+        var previousLive = ObsLive;
+        var previousReconnecting = ObsReconnecting;
+
         while (!ct.IsCancellationRequested)
         {
-            ObsConnected = _obsService.GetConnectionStatus;
-            ObsLive = _obsService.GetLiveStatus;
-            ObsReconnecting = _obsService.GetReconnectingStatus;
+            var newConnected = _obsService.GetConnectionStatus;
+            var newLive = _obsService.GetLiveStatus;
+            var newReconnecting = _obsService.GetReconnectingStatus;
 
-            NotifyChanged();
+            if (previousConnected != newConnected ||
+           previousLive != newLive ||
+           previousReconnecting != newReconnecting)
+            {
+                ObsConnected = newConnected;
+                ObsLive = newLive;
+                ObsReconnecting = newReconnecting;
+                NotifyChanged();
+            }
+
+            previousConnected = newConnected;
+            previousLive = newLive;
+            previousReconnecting = newReconnecting;
+
             await Task.Delay(5000, ct);
         }
     }
