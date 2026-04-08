@@ -27,7 +27,7 @@ show bracket information on a screen in a better format for viewers.
 - [ ] Have a manual complete match button to get next match info and mark locally until Challonge is refreshed
 - [x] Add CSV Import for Beyblade Deck Lists
 - [x] Match CSV to player names form Challonge and display deck info on stream
-- [ ] Manual Edit of Player Deck Info on Dashboard
+- [x] Manual Edit of Player Deck Info on Dashboard
 - [x] Add Table Configurations
 - [x] Set number of Tables (Stations) in use
 - [x] Assign Matches to Tables automatically - This is now done through the Challonge API
