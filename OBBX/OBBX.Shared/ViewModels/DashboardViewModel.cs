@@ -15,7 +15,8 @@ public class DashboardViewModel : IDisposable
     private readonly ISnackbar _snackbar;
     private readonly NavigationManager _nav;
     private CancellationTokenSource? _cts;
-    private int _lastProcessedRound = -1;
+    private CancellationTokenSource? _bracketRotationCts;
+    private int _lastProcessedRound = 0;
     private Dictionary<int, int> RoundMatchTracker = new Dictionary<int, int>();
 
     public bool IsLoadingTables { get; private set; } = true;
@@ -67,6 +68,11 @@ public class DashboardViewModel : IDisposable
 
         _matchState.MatchesUpdated += HandleMatchesUpdated;
         _matchState.TableAssignmentChanged += HandleTableAssignmentChanged;
+
+        if (_matchState.IsInitialized)
+        {
+            await RefreshBracketDataAndObsAsync();
+        }
 
         _cts = new CancellationTokenSource();
         _ = RunConnectionMonitorAsync(_cts.Token);
@@ -139,9 +145,9 @@ public class DashboardViewModel : IDisposable
 
         while (!ct.IsCancellationRequested)
         {
-            var newConnected = _obsService.GetConnectionStatus;
-            var newLive = _obsService.GetLiveStatus;
-            var newReconnecting = _obsService.GetReconnectingStatus;
+            var newConnected = await _obsService.GetConnectionStatus();
+            var newLive = await _obsService.GetLiveStatus();
+            var newReconnecting = await _obsService.GetReconnectingStatus();
 
             if (previousConnected != newConnected ||
            previousLive != newLive ||
@@ -167,21 +173,56 @@ public class DashboardViewModel : IDisposable
         await _matchState.GetCurrentRound();
         var settings = await _appSettings.GetSettingsAsync();
 
+        // Check if the round shifted or if we need to force an update
         if (settings.Challonge.CurrentRound != _lastProcessedRound)
         {
-            RoundMatchTracker.Clear();
             CurrentRound = settings.Challonge.CurrentRound;
             CurrentLoserBracket = settings.Challonge.CurrentLoserBracket;
             CurrentStage = settings.Challonge.CurrentStage.ToString().Replace("Group", "Group ");
             _lastProcessedRound = settings.Challonge.CurrentRound;
+
             await UpdateObsOverlayAsync(settings.Challonge.CurrentRound, settings.Challonge.CurrentStage);
 
-            // Only do this if we are in the group stage, we have a finals bracket to display proper 
-            if (CurrentStage == "Group Stage")
-                await _obsService.StartBracketRotation(RoundMatchTracker);
+            // This now handles initialization, syncing, and rotation
+            await RefreshBracketDataAndObsAsync();
         }
 
         NotifyChanged();
+    }
+
+    private async Task RefreshBracketDataAndObsAsync()
+    {
+        var settings = await _appSettings.GetSettingsAsync();
+
+        // 1. Rebuild the tracker based on current match states
+        RoundMatchTracker.Clear();
+
+        var winners = _matchState.GetWinnersBracketMatches();
+        if (winners.ContainsKey(settings.Challonge.CurrentRound))
+        {
+            RoundMatchTracker[settings.Challonge.CurrentRound] = winners[settings.Challonge.CurrentRound].Count;
+        }
+
+        if (settings.Challonge.CurrentLoserBracket < 0)
+        {
+            RoundMatchTracker[settings.Challonge.CurrentLoserBracket] = _matchState.GetLosersBracketMatches().Count;
+        }
+
+        // 2. Initialize OBS Sources (Ensure they exist and are set to 1080p)
+        string baseUri = _nav.BaseUri.TrimEnd('/');
+        string type = CurrentStage.ToLower().Contains("group") ? "swiss" : "bracket";
+        string baseUrl = $"{baseUri}/overlay/bracket/{type}/";
+
+        await _obsService.InitializeObsSourcesAsync("Group Stage", RoundMatchTracker, baseUrl);
+
+        // 3. Start or Restart the Rotation
+        _bracketRotationCts?.Cancel();
+        _bracketRotationCts = new CancellationTokenSource();
+
+        if (CurrentStage == "Group Stage")
+        {
+            _ = _obsService.StartBracketRotation(RoundMatchTracker, _bracketRotationCts.Token);
+        }
     }
 
     private async Task UpdateObsOverlayAsync(int round, string stage)
@@ -217,6 +258,7 @@ public class DashboardViewModel : IDisposable
     public void Dispose()
     {
         _cts?.Cancel();
+        _bracketRotationCts?.Cancel();
         _matchState.MatchesUpdated -= HandleMatchesUpdated;
         _matchState.TableAssignmentChanged -= HandleTableAssignmentChanged;
     }

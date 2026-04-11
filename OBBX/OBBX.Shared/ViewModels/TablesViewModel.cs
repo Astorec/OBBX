@@ -8,6 +8,7 @@ public class TablesViewModel : IDisposable
 {
     private readonly SettingsService _settingsService;
     private readonly MatchStateService _matchState;
+    private readonly OBSWebSocketService _obsService;
     private readonly ISnackbar _snackbar;
     private readonly IDialogService _dialogService;
 
@@ -72,11 +73,13 @@ public class TablesViewModel : IDisposable
     public TablesViewModel(
         SettingsService settingsService,
         MatchStateService matchState,
+        OBSWebSocketService obsService,
         ISnackbar snackbar,
         IDialogService dialogService)
     {
         _settingsService = settingsService;
         _matchState = matchState;
+        _obsService = obsService;
         _snackbar = snackbar;
         _dialogService = dialogService;
 
@@ -201,6 +204,16 @@ public class TablesViewModel : IDisposable
 
             await _matchState.AssignTableAsync(matchId, tableNumber);
             Matches = _matchState.GetMatches().ToList();
+
+            // Update deck profiles for the involved players
+                var match = Matches.FirstOrDefault(m => m.MatchId == matchId);
+               
+               // only update deck profile is the table is the live feed
+                if (match != null && tableNumber == LiveFeedTableNumber)
+                {
+                    await _obsService.UpdateDeckProfilesCommand(match.Player1Name, match.Player2Name);
+                }
+
             _snackbar.Add("Table assigned.", Severity.Success);
         }
         catch (Exception ex)
@@ -208,6 +221,7 @@ public class TablesViewModel : IDisposable
             _snackbar.Add(ex.Message, Severity.Error);
         }
     }
+
 
     public async Task ClearTableAsync(long matchId)
     {

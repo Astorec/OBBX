@@ -16,7 +16,14 @@
     {
         <div class="round-header-full">
             <MudText Typo="Typo.h4" Style="color: var(--mud-palette-primary); font-weight: 900;">
-                ROUND @round.Key @(Page > 0 ? $"(Page {Page})" : "")
+                @if (round.Key > 0)
+                {
+                    @:Winner Bracket - Round @round.Key @(Page > 0 ? $"(Page {Page})" : "")
+                }
+                else if (round.Key < 0)
+                {
+                    @:Loser Bracket - Round @Math.Abs(round.Key) @(Page > 0 ? $"(Page {Page})" : "")
+                }
             </MudText>
         </div>
 

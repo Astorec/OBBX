@@ -22,9 +22,9 @@ public class OBSWebSocketService
     private string _currentScene = string.Empty;
     private List<SceneStub> _scenes = new List<SceneStub>();
     private List<(int Round, int Page)> _rotationQueue = new();
-    private int _currentIndex = 0;
     private Dictionary<string, DeckProfile> _onStreamProfiles = new Dictionary<string, DeckProfile>();
-
+    private readonly Dictionary<string, double> _bracketItemIdCache = new();
+    private int _maxRetries = 5;
     public OBSWebSocketService(ILogger<OBSWebSocketService> logger, CSVService cSVService, ObsWebSocketClient obsClient)
     {
         _logger = logger;
@@ -57,7 +57,8 @@ public class OBSWebSocketService
 
     private async Task ConnectWithRetryAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested && !_isConnected)
+        int retries = 0;
+        while (!stoppingToken.IsCancellationRequested && !_isConnected && retries < _maxRetries)
         {
             try
             {
@@ -77,14 +78,18 @@ public class OBSWebSocketService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning("OBS connection failed. Retrying in 5 seconds... Error: {Message}", ex.Message);
+                retries++;
 
-                // Wait before trying again
-                try
+                if (retries >= _maxRetries)
                 {
-                    await Task.Delay(5000, stoppingToken);
+                    _logger.LogWarning("Max retries reached. Waiting before retrying again...");
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                    retries = 0;
                 }
-                catch (TaskCanceledException) { break; }
+                else
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                }
             }
         }
         _isAttemptingConnection = false;
@@ -116,6 +121,8 @@ public class OBSWebSocketService
 
     private async Task ObsLiveStatus()
     {
+        if (_isAttemptingConnection) return;
+
         if (!_isConnected)
         {
             _logger.LogWarning("Cannot check live status; not connected to OBS.");
@@ -126,7 +133,7 @@ public class OBSWebSocketService
         {
             try
             {
-                var streamingStatus = _obsClient.GetStreamStatusAsync().GetAwaiter().GetResult();
+                var streamingStatus = await _obsClient.GetStreamStatusAsync();
                 if (streamingStatus == null)
                 {
                     _logger.LogWarning("Failed to retrieve streaming status from OBS.");
@@ -177,19 +184,16 @@ public class OBSWebSocketService
 
         try
         {
-            // 1. Use the helper to update names safely (prevents JSON crashes)
             await UpdateObsText("Player 1", table.Player1Name ?? "N/A");
             await UpdateObsText("Player 2", table.Player2Name ?? "N/A");
 
             _logger.LogInformation("Updated player names for Table {TableNumber}", table.TableNumber);
 
-            // 2. Trigger the profile update (which we optimized in the previous step)
             if (!string.IsNullOrWhiteSpace(table.Player1Name) || !string.IsNullOrWhiteSpace(table.Player2Name))
             {
                 await UpdateDeckProfiles(table.Player1Name, table.Player2Name);
             }
-
-            // 3. Switch scene
+            
             await SwitchScenes($"Table {table.TableNumber}");
         }
         catch (ObsWebSocketException ex)
@@ -201,6 +205,7 @@ public class OBSWebSocketService
 
     public async Task SwitchScenes(string sceneName)
     {
+
         if (!_isConnected)
         {
             _logger.LogWarning("Cannot switch scenes; not connected to OBS.");
@@ -249,21 +254,44 @@ public class OBSWebSocketService
         }
     }
 
+    public async Task UpdateDeckProfilesCommand(string player1, string player2)
+    {
+        if (!_isConnected)
+        {
+            _logger.LogWarning("Cannot update deck profiles; not connected to OBS.");
+            return;
+        }
+
+        try
+        {
+            await UpdateDeckProfiles(player1, player2);
+        }
+        catch (ObsWebSocketException ex)
+        {
+            _logger.LogError(ex, "Error updating deck profiles: {ErrorMessage}", ex.Message);
+            await ReconnectAsync();
+        }
+    }
     private string BuildDeckString(params string?[] beys)
     {
-        var validBeys = beys.Where(b => !string.IsNullOrWhiteSpace(b)).Select(b => $"- {b}");
-        return string.Join("\n", validBeys);
+        return string.Join("\n", beys
+            .Where(b => !string.IsNullOrWhiteSpace(b))
+            .Select(b => $"- {b}"));
     }
 
     private async Task UpdateObsText(string inputName, string text)
     {
-        var jsonString = JsonSerializer.Serialize(new { text });
-        var request = new SetInputSettingsRequestData
+        if (!_isConnected) return;
+        try
         {
-            InputName = inputName,
-            InputSettings = JsonDocument.Parse(jsonString).RootElement
-        };
-        await _obsClient.SetInputSettingsAsync(request);
+            var jsonString = JsonSerializer.Serialize(new { text });
+            await _obsClient.SetInputSettingsAsync(new SetInputSettingsRequestData
+            {
+                InputName = inputName,
+                InputSettings = JsonDocument.Parse(jsonString).RootElement
+            });
+        }
+        catch (Exception ex) { _logger.LogError(ex, "Text update failed"); }
     }
 
     private void OnCurrentProgramSceneChanged(object? sender, CurrentProgramSceneChangedEventArgs e)
@@ -364,91 +392,184 @@ public class OBSWebSocketService
     #endregion
 
     #region Advanced Scene Switcher Methods
-
-    public async Task UpdateBracketVisibility(int round, int page)
+    public async Task StartBracketRotation(Dictionary<int, int> roundData, CancellationToken ct)
     {
-        var baseUrl = "http://localhost:5181/overlay/bracket/swiss/";
-        var sceneName = "Group Stage";
+        const string sceneName = "Group Stage";
+        const string baseUrl = "http://localhost:5181/overlay/bracket/swiss/";
 
-        //
-        var response = await _obsClient.GetSceneItemListAsync(new GetSceneItemListRequestData(sceneName));
-        if (response?.SceneItems == null) return;
-
-        bool showingWinners = round > 0;
-
-        foreach (var item in response.SceneItems)
+        try
         {
-            // Safety check for null names
-            if (string.IsNullOrEmpty(item.SourceName)) continue;
+            await InitializeObsSourcesAsync(sceneName, roundData, baseUrl);
 
-            bool isWinnerSource = item.SourceName.Contains("Winners", StringComparison.OrdinalIgnoreCase);
-            bool isLoserSource = item.SourceName.Contains("Losers", StringComparison.OrdinalIgnoreCase);
+            await SyncBracketSources(sceneName, roundData);
 
-            if (isWinnerSource || isLoserSource)
+            while (!ct.IsCancellationRequested)
             {
-                bool shouldBeEnabled = isWinnerSource ? showingWinners : !showingWinners;
+                var sortedRounds = roundData.Keys
+                    .OrderByDescending(k => k > 0)
+                    .ThenBy(k => k > 0 ? k : Math.Abs(k));
 
-                // Set the visibility
+                foreach (var roundKey in sortedRounds)
+                {
+                    int matchCount = roundData[roundKey];
+                    // Ensure we ALWAYS round up. 33 matches = 2 pages.
+                    int totalPages = (int)Math.Ceiling((double)matchCount / 32);
+
+                    Console.WriteLine($"[Rotation] Round {roundKey} has {matchCount} matches. Total Pages: {totalPages}");
+
+                    for (int p = 1; p <= totalPages; p++)
+                    {
+                        if (ct.IsCancellationRequested) return;
+
+                        Console.WriteLine($"[Rotation] Showing {roundKey} Page {p} of {totalPages}");
+                        var prefix = roundKey > 0 ? "Winners" : "Losers";
+                        await ShowBracketPage(sceneName, prefix, roundKey, p, baseUrl);
+
+                        await Task.Delay(15000, ct);
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task ShowBracketPage(string sceneName, string prefix, int round, int page, string baseUrl)
+    {
+        string targetName = $"{prefix}_P{page}";
+        string targetUrl = $"{baseUrl}{round}/{page}";
+
+        try
+        {
+            var getSettingsRequest = new GetInputSettingsRequestData(targetName);
+            var currentSettingsResponse = await _obsClient.GetInputSettingsAsync(getSettingsRequest);
+            if (currentSettingsResponse?.InputSettings is JsonElement settingsElement)
+            {
+                if (settingsElement.TryGetProperty("url", out var urlElement))
+                {
+                    if (urlElement.GetString() != targetUrl)
+                    {
+                        var settings = new { url = targetUrl };
+                        await _obsClient.SetInputSettingsAsync(new SetInputSettingsRequestData(
+                            inputName: targetName,
+                            inputSettings: JsonSerializer.SerializeToElement(settings)
+                        ));
+
+                        _logger.LogInformation("URL Updated for {Target}: {Url}", targetName, targetUrl);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            
+        }
+        
+        foreach (var kvp in _bracketItemIdCache)
+        {
+            bool shouldBeVisible = (kvp.Key == targetName);
+
+            // Only send the command if we are certain it's a bracket source
+            if (kvp.Key.StartsWith("Winners_") || kvp.Key.StartsWith("Losers_"))
+            {
                 await _obsClient.SetSceneItemEnabledAsync(new SetSceneItemEnabledRequestData(
                     sceneName: sceneName,
-                    sceneItemId: (double)item.SceneItemId,
-                    sceneItemEnabled: shouldBeEnabled
+                    sceneItemId: kvp.Value,
+                    sceneItemEnabled: shouldBeVisible
                 ));
-
-                if (shouldBeEnabled)
-                {
-                    var settings = new { url = $"{baseUrl}{round}/{page}" };
-
-                    // Update URL
-                    await _obsClient.SetInputSettingsAsync(new SetInputSettingsRequestData(
-                        inputName: item.SourceName,
-                        inputSettings: JsonSerializer.SerializeToElement(settings)
-                    ));
-                }
             }
         }
     }
 
-    public async Task StartBracketRotation(Dictionary<int, int> roundData)
+    private async Task SyncBracketSources(string sceneName, Dictionary<int, int> roundData)
     {
-        while (true)
+        var response = await _obsClient.GetSceneItemListAsync(new GetSceneItemListRequestData(sceneName));
+        var currentObsSources = response.SceneItems
+            .Where(i => i.SourceName.Contains("Winners_P") || i.SourceName.Contains("Losers_P"))
+            .ToList();
+
+        var validSourceNames = new HashSet<string>();
+        foreach (var round in roundData)
         {
-            var sortedRounds = roundData.Keys
-                .OrderByDescending(k => k > 0)
-                .ThenBy(k => k > 0 ? k : Math.Abs(k));
-
-            foreach (var roundKey in sortedRounds)
+            string prefix = round.Key > 0 ? "Winners" : "Losers";
+            int totalPages = (int)Math.Ceiling((double)round.Value / 32);
+            for (int p = 1; p <= totalPages; p++)
             {
-                int matchCount = roundData[roundKey];
-                int pages = (int)Math.Ceiling((double)matchCount / 32);
-
-                for (int p = 1; p <= pages; p++)
-                {
-                    // This updates visibility and the URL
-                    await UpdateBracketVisibility(roundKey, p);
-
-                    await Task.Delay(15000);
-                }
+                validSourceNames.Add($"{prefix}_P{p}");
             }
-
         }
 
+        foreach (var item in currentObsSources)
+        {
+            if (!validSourceNames.Contains(item.SourceName))
+            {
+                await _obsClient.RemoveInputAsync(new RemoveInputRequestData(item.SourceName));
+            }
+        }
+
+    }
+
+    public async Task InitializeObsSourcesAsync(string sceneName, Dictionary<int, int> roundData, string baseUrl)
+    {
+        var response = await _obsClient.GetSceneItemListAsync(new GetSceneItemListRequestData(sceneName));
+        _bracketItemIdCache.Clear();
+
+        // Cache existing IDs immediately
+        if (response?.SceneItems != null)
+        {
+            foreach (var item in response.SceneItems)
+                _bracketItemIdCache[item.SourceName] = (double)item.SceneItemId;
+        }
+
+        foreach (var round in roundData)
+        {
+            string prefix = round.Key > 0 ? "Winners" : "Losers";
+            int totalPages = (int)Math.Ceiling((double)round.Value / 32);
+
+            for (int p = 1; p <= totalPages; p++)
+            {
+                string targetName = $"{prefix}_P{p}";
+                if (!_bracketItemIdCache.ContainsKey(targetName))
+                {
+                    var settings = new { url = $"{baseUrl}{round.Key}/{p}", width = 1920, height = 1080 };
+
+                    // Create the input
+                    await _obsClient.CreateInputAsync(new CreateInputRequestData(
+                        sceneName: sceneName,
+                        inputName: targetName,
+                        inputKind: "browser_source",
+                        inputSettings: JsonSerializer.SerializeToElement(settings),
+                        sceneItemEnabled: false
+                    ));
+
+                    // Re-fetch list once to get the new ID or predict it if possible
+                    // Better: just refresh the whole cache once after the loop if items were added
+                }
+            }
+        }
+
+        // Refresh cache one last time to ensure we have IDs for newly created items
+        var finalItems = await _obsClient.GetSceneItemListAsync(new GetSceneItemListRequestData(sceneName));
+        foreach (var item in finalItems.SceneItems)
+            _bracketItemIdCache[item.SourceName] = (double)item.SceneItemId;
     }
 
     #endregion
 
     #region Public Methods
 
-    public bool GetLiveStatus
+    public async Task<bool> GetLiveStatus()
     {
-        get
-        {
-            ObsLiveStatus();
-            return _isLive;
-        }
+        await ObsLiveStatus();
+        return _isLive;
     }
-    public bool GetReconnectingStatus => _isReconencting;
-    public bool GetConnectionStatus => _isConnected;
+    public async Task<bool> GetReconnectingStatus()
+    {
+        return _isReconencting;
+    }
+    public async Task<bool> GetConnectionStatus()
+    {
+        return _isConnected;
+    }
     public string GetCurrentScene => _currentScene;
     public List<SceneStub> GetScenes => _scenes;
 

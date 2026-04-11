@@ -55,6 +55,10 @@ public class SettingsViewModel
             }
             return CsvImportPath;
         }
+        private set
+        {
+
+        }
     }
 
     public event Action? OnChanged;
@@ -189,5 +193,17 @@ public class SettingsViewModel
         }
     }
 
+    public async Task ClearCsvImportAsync()
+    {
+        if (this.Settings.CsvImport != null)
+        {
+            this.Settings.CsvImport.ImportPath = string.Empty;
+            this.Settings.CsvImport.IsBrowserUpload = false;
+        }
+
+        this.CsvImportDisplay = string.Empty;
+
+        NotifyChanged();
+    }
     private void NotifyChanged() => OnChanged?.Invoke();
 }
