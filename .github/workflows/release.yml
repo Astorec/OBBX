@@ -1,0 +1,55 @@
+name: OBBX Hybrid Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write 
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x 
+
+    - name: Install MAUI Workload
+      run: dotnet workload install maui
+
+    # --- BUILD & PUBLISH WINDOWS/WEB ---
+    - name: Publish Web App (Windows)
+      run: dotnet publish "OBBX\OBBX.Web\OBBX.Web.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true -o ./win-publish
+
+    - name: Zip Windows Release
+      shell: pwsh
+      run: Compress-Archive -Path ./win-publish/* -DestinationPath ./OBBX-Windows-x64.zip
+
+    # --- BUILD & PUBLISH LINUX ---
+    - name: Publish Web App (Linux)
+      run: dotnet publish "OBBX\OBBX.Web\OBBX.Web.csproj" -c Release -r linux-x64 --self-contained true -o ./linux-publish
+
+    - name: Zip Linux Release
+      shell: pwsh
+      run: Compress-Archive -Path ./linux-publish/* -DestinationPath ./OBBX-Linux-x64.zip
+
+    # --- CREATE GITHUB RELEASE ---
+    - name: Create GitHub Release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        files: |
+          OBBX-Windows-x64.zip
+          OBBX-Linux-x64.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
