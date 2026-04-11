@@ -65,7 +65,7 @@ builder.Services.AddTransient<DashboardViewModel>();
 builder.Services.AddTransient<TablesViewModel>();
 builder.Services.AddTransient<SettingsViewModel>();
 builder.Services.AddTransient<PlayerDeckProfileViewModel>();
-
+builder.WebHost.UseUrls("http://localhost:5181");
 var app = builder.Build();
 
 // Initialize CSV service from persisted settings on app start (no manual refresh needed)
@@ -87,5 +87,15 @@ app.UseAntiforgery();
 app.MapRazorComponents<App>()
 .AddInteractiveServerRenderMode()
 .AddAdditionalAssemblies(typeof(OBBX.Shared.Pages.Dashboard).Assembly);
+
+if (app.Environment.IsProduction())
+{
+    var url = "http://localhost:5181"; 
+    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+    {
+        FileName = url,
+        UseShellExecute = true
+    });
+}
 
 app.Run();
