@@ -26,7 +26,15 @@ jobs:
 
     # --- BUILD & PUBLISH WINDOWS/WEB ---
     - name: Publish Web App (Windows)
-      run: dotnet publish "OBBX\OBBX.Web\OBBX.Web.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true -o ./win-publish
+      run: |
+        dotnet publish "OBBX\OBBX.Web\OBBX.Web.csproj" `
+        -c Release `
+        -r win-x64 `
+        --self-contained true `
+        -p:PublishSingleFile=true `
+        -p:IncludeNativeLibrariesForSelfExtract=true ` # Add this
+        -p:PublishReadyToRun=true `
+        -o ./win-publish
 
     - name: Zip Windows Release
       shell: pwsh
