@@ -18,6 +18,7 @@ public class OBSWebSocketService
     private bool _isLive = false;
     private bool _isReconencting = false;
     private bool _isInitialized = false;
+    private bool _firstRun = true;
     private bool _isAttemptingConnection = false;
     private string _currentScene = string.Empty;
     private List<SceneStub> _scenes = new List<SceneStub>();
@@ -41,12 +42,18 @@ public class OBSWebSocketService
     {
         if (_isAttemptingConnection) return;
 
-        if (_isInitialized)
-        {
+        if (_isInitialized && _firstRun)
+        {            
+            _firstRun = false;
             await _csvService.InitializeAsync();
             var scenes = await _obsClient.GetSceneListAsync();
             _scenes = scenes?.Scenes?.ToList() ?? new List<SceneStub>();
-            _currentScene = _scenes.Count > 0 ? _scenes[0].SceneName ?? string.Empty : string.Empty;
+            var startingScene = _scenes.Count > 0 ? _scenes.Where(s => s.SceneName == "Intermission").FirstOrDefault() : null;
+            _currentScene = startingScene?.SceneName ?? string.Empty;
+            if(!string.IsNullOrEmpty(_currentScene))
+                await SwitchScenes(_currentScene);  
+            await UpdatePlayerScore(1, 0);
+            await UpdatePlayerScore(2, 0);
             return;
         }
 
@@ -106,7 +113,7 @@ public class OBSWebSocketService
         _isInitialized = false;
     }
 
-    private void OnObsConnected(object? sender, EventArgs e)
+    private async void OnObsConnected(object? sender, EventArgs e)
     {
         _logger.LogInformation("Event Handler: Connected to OBS!");
         _isConnected = true;
@@ -170,6 +177,7 @@ public class OBSWebSocketService
             _logger.LogError(ex, "Error checking live status: {ErrorMessage}", ex.Message);
         }
     }
+
     #endregion
 
     #region Scene Methods
@@ -193,7 +201,7 @@ public class OBSWebSocketService
             {
                 await UpdateDeckProfiles(table.Player1Name, table.Player2Name);
             }
-            
+
             await SwitchScenes($"Table {table.TableNumber}");
         }
         catch (ObsWebSocketException ex)
@@ -205,7 +213,6 @@ public class OBSWebSocketService
 
     public async Task SwitchScenes(string sceneName)
     {
-
         if (!_isConnected)
         {
             _logger.LogWarning("Cannot switch scenes; not connected to OBS.");
@@ -389,6 +396,27 @@ public class OBSWebSocketService
             _logger.LogError(ex, "Failed to populate Group Stage Scene");
         }
     }
+
+    public async Task UpdatePlayerScore(int playerNumber, int newScore)
+    {
+        if (!_isConnected) return;
+
+        try
+        {
+            string inputName = $"Player {playerNumber} Score";
+            var jsonString = JsonSerializer.Serialize(new { text = newScore.ToString() });
+            await _obsClient.SetInputSettingsAsync(new SetInputSettingsRequestData
+            {
+                InputName = inputName,
+                InputSettings = JsonDocument.Parse(jsonString).RootElement
+            });
+            _logger.LogInformation("Updated Player {PlayerNumber} Score to {Score}", playerNumber, newScore);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update player score");
+        }
+    }
     #endregion
 
     #region Advanced Scene Switcher Methods
@@ -461,9 +489,9 @@ public class OBSWebSocketService
         }
         catch
         {
-            
+
         }
-        
+
         foreach (var kvp in _bracketItemIdCache)
         {
             bool shouldBeVisible = (kvp.Key == targetName);
@@ -571,7 +599,6 @@ public class OBSWebSocketService
         return _isConnected;
     }
     public string GetCurrentScene => _currentScene;
-    public List<SceneStub> GetScenes => _scenes;
-
+    public List<SceneStub> GetScenes => _isConnected ? _scenes : new List<SceneStub>();
     #endregion
 }

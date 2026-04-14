@@ -35,6 +35,9 @@ public class DashboardViewModel : IDisposable
 
     public Color ObsStatusColor => ObsConnected ? Color.Success : Color.Error;
     public Color ObsLiveColor => ObsLive ? Color.Success : (ObsReconnecting ? Color.Warning : Color.Error);
+    
+    public Dictionary<int, int> PlayerScores { get; private set; } = new Dictionary<int, int>();
+    public List<KeyValuePair<int, int>?> lastScoreUpdate { get; private set; } = new List<KeyValuePair<int, int>?>();
 
     // Event to notify the Razor component to call StateHasChanged
     public event Action? OnChanged;
@@ -58,6 +61,7 @@ public class DashboardViewModel : IDisposable
         var settings = await _appSettings.GetSettingsAsync();
         ChallongeUri = settings.Challonge?.Uri ?? "";
         LiveFeedTableNumber = settings.Tables?.LiveFeedTableNumber ?? 1;
+        PlayerScores = new Dictionary<int, int> { { 1, 0 }, { 2, 0 } };
 
         if (settings?.Challonge != null)
         {
@@ -90,6 +94,15 @@ public class DashboardViewModel : IDisposable
 
                 TableMatches = _matchState.GetActiveTableMatches().ToList();
             }
+
+            if(ObsConnected)
+            {
+                Scenes = _obsService.GetScenes;                
+            }
+        }
+        catch(Exception ex)
+        {
+            _snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -247,9 +260,52 @@ public class DashboardViewModel : IDisposable
         }
     }
 
-    private void HandleTableAssignmentChanged(object? s, TableAssignmentChangedEventArgs e)
+    public async Task UpdatePlayerScoreAsync(int playerNum, int score)
+    {
+        if (playerNum != 1 && playerNum != 2)
+        {
+            _snackbar.Add("Invalid player number. Must be 1 or 2.", Severity.Error);
+            return;
+        }
+
+        PlayerScores[playerNum] += score;
+        if(CurrentStage.ToLower().Contains("finals") && PlayerScores[playerNum] > 6)
+        {
+            PlayerScores[playerNum] = 7; 
+        }
+        else if(PlayerScores[playerNum] > 4)
+        {
+            PlayerScores[playerNum] = 4;
+        }
+
+        lastScoreUpdate.Add(new KeyValuePair<int, int>(playerNum, score));
+
+        await _obsService.UpdatePlayerScore(playerNum, PlayerScores[playerNum]);
+        NotifyChanged();
+    
+    }
+
+    public async Task UndoLastScoreUpdateAsync()
+    {
+        if (lastScoreUpdate.LastOrDefault() is KeyValuePair<int, int> update)
+        {
+            int playerNum = update.Key;
+            PlayerScores[playerNum] = PlayerScores[playerNum] - update.Value;
+            if (PlayerScores[playerNum] < 0) PlayerScores[playerNum] = 0; // Ensure score doesn't go negative
+            lastScoreUpdate.RemoveAt(lastScoreUpdate.Count - 1);
+
+            await _obsService.UpdatePlayerScore(playerNum, PlayerScores[playerNum]);
+            NotifyChanged();
+        }
+    }
+
+    private async void HandleTableAssignmentChanged(object? s, TableAssignmentChangedEventArgs e)
     {
         TableMatches = _matchState.GetActiveTableMatches().ToList();
+        PlayerScores[1] = 0;
+        PlayerScores[2] = 0;
+        await _obsService.UpdatePlayerScore(1, 0);
+        await _obsService.UpdatePlayerScore(2, 0);
         NotifyChanged();
     }
 

@@ -519,6 +519,11 @@ public class MatchStateService : IDisposable
             settings.Challonge.CurrentLoserBracket = currentLoserBracketMatch.Round;
             _currentLoserBracket = currentLoserBracketMatch.Round;
         }
+        else
+        {
+            settings.Challonge.CurrentLoserBracket = 0;
+            _currentLoserBracket = 0;
+        }
 
         await _settingsService.SaveAsync(settings);
     }
@@ -736,6 +741,8 @@ public class MatchStateService : IDisposable
             }
 
             // Now apply all changes atomically:
+            bool hasAnyChange = false;
+
             foreach (var previousMatch in previouslyAssignedMatches)
             {
                 if (!newAssignments.ContainsKey(previousMatch.MatchId))
@@ -750,17 +757,26 @@ public class MatchStateService : IDisposable
             {
                 if (_matches.TryGetValue(matchId, out var match))
                 {
-                    match.TableNumber = tableNumber;
-                    match.TableAssignedAt = DateTime.UtcNow;
-                    Console.WriteLine($"[MatchState] Auto-assigned match {matchId} ({match.Player1Name} vs {match.Player2Name}) to Table {tableNumber}");
+                    if (match.TableNumber != tableNumber)
+                    {
+                        match.TableNumber = tableNumber;
+                        match.TableAssignedAt = DateTime.UtcNow;
+                        hasAnyChange = true; 
+                        Console.WriteLine($"[MatchState] Auto-assigned match {matchId} to Table {tableNumber}");
+                    }
                 }
             }
 
-            // Save the auto-populated assignments
-            await SaveTableAssignmentsAsync();
-
-            // Fire a single event after all assignments are complete
-            TableAssignmentChanged?.Invoke(this, new TableAssignmentChangedEventArgs());
+            // 3. Only save and fire the event if something actually moved
+            if (hasAnyChange)
+            {
+                await SaveTableAssignmentsAsync();
+                TableAssignmentChanged?.Invoke(this, new TableAssignmentChangedEventArgs());
+            }
+            else
+            {
+                Console.WriteLine("[MatchState] Refresh complete: No assignment changes detected.");
+            }
         }
         catch (Exception ex)
         {
