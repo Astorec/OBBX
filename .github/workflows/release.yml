@@ -42,15 +42,7 @@ jobs:
 
     # --- BUILD & PUBLISH LINUX ---
     - name: Publish Web App (Linux)
-      run: |
-        dotnet publish "OBBX\OBBX.Web\OBBX.Web.csproj" `
-        -c Release `
-        -r linux-64 `
-        --self-contained true `
-        -p:PublishSingleFile=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true ` # Add this
-        -p:PublishReadyToRun=true `
-        -o ./win-publish
+      run: dotnet publish "OBBX\OBBX.Web\OBBX.Web.csproj" -c Release -r linux-x64 --self-contained true -o ./linux-publish
 
     - name: Zip Linux Release
       shell: pwsh
