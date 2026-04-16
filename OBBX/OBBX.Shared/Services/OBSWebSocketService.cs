@@ -21,6 +21,8 @@ public class OBSWebSocketService
     private bool _firstRun = true;
     private bool _isAttemptingConnection = false;
     private string _currentScene = string.Empty;
+    private string _caster01Name = string.Empty;
+    private string _caster02Name = string.Empty;
     private List<SceneStub> _scenes = new List<SceneStub>();
     private List<(int Round, int Page)> _rotationQueue = new();
     private Dictionary<string, DeckProfile> _onStreamProfiles = new Dictionary<string, DeckProfile>();
@@ -43,18 +45,41 @@ public class OBSWebSocketService
         if (_isAttemptingConnection) return;
 
         if (_isInitialized && _firstRun)
-        {            
+        {
             _firstRun = false;
             await _csvService.InitializeAsync();
             var scenes = await _obsClient.GetSceneListAsync();
             _scenes = scenes?.Scenes?.ToList() ?? new List<SceneStub>();
             var startingScene = _scenes.Count > 0 ? _scenes.Where(s => s.SceneName == "Intermission").FirstOrDefault() : null;
             _currentScene = startingScene?.SceneName ?? string.Empty;
-            if(!string.IsNullOrEmpty(_currentScene))
-                await SwitchScenes(_currentScene);  
+            if (!string.IsNullOrEmpty(_currentScene))
+                await SwitchScenes(_currentScene);
             await UpdatePlayerScore(1, 0);
             await UpdatePlayerScore(2, 0);
             return;
+        }
+
+        if (_isConnected)
+        {
+            var settings = await new SettingsService().LoadAsync();
+            if (_caster01Name != settings.CasterSettings.Caster1Name || _caster02Name != settings.CasterSettings.Caster2Name)
+            {
+
+                if (string.IsNullOrWhiteSpace(settings.CasterSettings.Caster1Name) || string.IsNullOrWhiteSpace(settings.CasterSettings.Caster2Name))
+                    _logger.LogInformation("Caster names are not fully set. Skipping OBS text updates for casters.");
+                else
+                {
+
+                    _caster01Name = settings.CasterSettings.Caster1Name ?? string.Empty;
+                    _caster02Name = settings.CasterSettings.Caster2Name ?? string.Empty;
+                    await UpdateObsText("Caster 01 Name", _caster01Name);
+                    await UpdateObsText("Caster 02 Name", _caster02Name);
+                    await UpdateObsText("Caster 01 Social 01", settings.CasterSettings.Caster01Socials01 ?? string.Empty);
+                    await UpdateObsText("Caster 01 Social 02", settings.CasterSettings.Caster01Socials02 ?? string.Empty);
+                    await UpdateObsText("Caster 02 Social 01", settings.CasterSettings.Caster02Socials01 ?? string.Empty);
+                    await UpdateObsText("Caster 02 Social 02", settings.CasterSettings.Caster02Socials02 ?? string.Empty);
+                }
+            }
         }
 
         _isAttemptingConnection = true;

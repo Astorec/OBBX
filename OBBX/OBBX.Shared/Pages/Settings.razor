@@ -39,6 +39,19 @@
         </MudItem>
         <MudItem xs="12">
             <MudCard>
+                <MudText Typo="Typo.h6" Class="pa-4">Caster Settings</MudText>
+                <MudCardContent>
+                    <MudTextField @bind-Value="VM.Settings.CasterSettings.Caster1Name" Label="Caster 01 Name" Variant="Variant.Outlined" FullWidth="true" />
+                    <MudTextField @bind-Value="VM.Settings.CasterSettings.Caster01Socials01" Label="Caster 01 Social 01" Variant="Variant.Outlined" FullWidth="true" />
+                    <MudTextField @bind-Value="VM.Settings.CasterSettings.Caster01Socials02" Label="Caster 01 Social 02" Variant="Variant.Outlined" FullWidth="true" />
+                    <MudTextField @bind-Value="VM.Settings.CasterSettings.Caster2Name" Label="Caster 02 Name" Variant="Variant.Outlined" FullWidth="true" Class="mt-4" />
+                    <MudTextField @bind-Value="VM.Settings.CasterSettings.Caster02Socials01" Label="Caster 02 Social 01" Variant="Variant.Outlined" FullWidth="true" />
+                    <MudTextField @bind-Value="VM.Settings.CasterSettings.Caster02Socials02" Label="Caster 02 Social 02" Variant="Variant.Outlined" FullWidth="true" />
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12">
+            <MudCard>
                 <MudText Typo="Typo.h6" Class="pa-4">CSV Blader Data Import</MudText>
                 <MudCardContent>
                     <MudTextField Value="@VM.CsvImportDisplay" Label="CSV File Path" Variant="Variant.Outlined" FullWidth="true" Disabled="true" />         

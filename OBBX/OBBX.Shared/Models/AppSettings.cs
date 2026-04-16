@@ -6,6 +6,7 @@ public class AppSettings
     public OBSWebSocketSettings OBSWebSocket {get; set;} = new OBSWebSocketSettings();
     public CsvImportSettings CsvImport {get; set;} = new CsvImportSettings();
     public TableSettings Tables {get; set;} = new TableSettings();
+    public CasterSettings CasterSettings {get; set;} = new CasterSettings();
 }
 
 public class ChallongeSettings
@@ -41,4 +42,15 @@ public class TableSettings
     public int TableCount {get; set;} = 4;
     public int LiveFeedTableNumber {get; set;} = 1;
     public bool UseChallongeForTables{get; set;} = false;
+}
+
+public class CasterSettings
+{
+    public string? Caster1Name {get; set;} = string.Empty;
+    public string? Caster2Name {get; set;} = string.Empty;
+
+    public string Caster01Socials01 {get; set;} = string.Empty;
+    public string? Caster01Socials02 {get; set;} = string.Empty;
+    public string Caster02Socials01 {get; set;} = string.Empty;
+    public string Caster02Socials02 {get; set;} = string.Empty;
 }

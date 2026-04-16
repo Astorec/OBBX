@@ -95,13 +95,13 @@
                                     @player1 - Score @(VM.PlayerScores.ContainsKey(1) ? VM.PlayerScores[1] : 0)
                                 </MudText>
                                 <div>
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                    <MudButton Style="height: auto; padding: 16px;" Variant="Variant.Outlined" Color="Color.Primary"
                                                OnClick="@(() => VM.UpdatePlayerScoreAsync(1, 1))">
                                         Spin Finish (1 Point)</MudButton>
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                        <MudButton Style="height: auto; padding: 16px;" class="ma-2" Variant="Variant.Outlined" Color="Color.Primary"
                                                    OnClick="@(() => VM.UpdatePlayerScoreAsync(1, 2))">
                                             Over Finish/Burst Finish (2 Points)</MudButton>
-                                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                            <MudButton Style="height: auto; padding: 16px;" Variant="Variant.Outlined" Color="Color.Primary"
                                                        OnClick="@(() => VM.UpdatePlayerScoreAsync(1, 3))">
                                                 Extreme Finish (3 Points)</MudButton>
                                             </div>
@@ -111,13 +111,13 @@
                                                 @player2 - Score @(VM.PlayerScores.ContainsKey(2) ? VM.PlayerScores[2] : 0)
                                             </MudText>
                                             <div>
-                                                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                                <MudButton Style="height: auto; padding: 16px;" Variant="Variant.Outlined" Color="Color.Primary"
                                                            OnClick="@(() => VM.UpdatePlayerScoreAsync(2, 1))">
                                                     Spin Finish (1 Point)</MudButton>
-                                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                                    <MudButton Style="height: auto; padding: 16px;" class="ma-2" Variant="Variant.Outlined" Color="Color.Primary"
                                                                OnClick="@(() => VM.UpdatePlayerScoreAsync(2, 2))">
                                                         Over Finish/Burst Finish (2 Points)</MudButton>
-                                                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                                        <MudButton Style="height: auto; padding: 16px;" Variant="Variant.Outlined" Color="Color.Primary"
                                                                    OnClick="@(() => VM.UpdatePlayerScoreAsync(2, 3))">
                                                             Extreme Finish (3 Points)</MudButton>
                                                         </div>

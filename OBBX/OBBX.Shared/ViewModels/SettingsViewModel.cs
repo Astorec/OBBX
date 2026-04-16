@@ -114,12 +114,6 @@ public class SettingsViewModel
             {
                 await _csvService.ReloadCsvAsync(newCsvPath);
             }
-            else if (newCsvBrowser)
-            {
-                // Browser upload is not re-loadable by path; keep cached data as-is.
-            }
-
-            // Logic: If the URL changed, we need to flush the old match data
             var newUri = Settings.Challonge?.Uri;
             if (!string.Equals(newUri, _originalChallongeUri, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(newUri))
