@@ -35,6 +35,10 @@ jobs:
         -p:IncludeNativeLibrariesForSelfExtract=true ` # Add this
         -p:PublishReadyToRun=true `
         -o ./win-publish
+        
+    - name: Copy OBS Files (Windows)
+      shell: pwsh
+      run: Copy-Item -Path "./OBS Files" -Destination "./win-publish/OBS Files" -Recurse
 
     - name: Zip Windows Release
       shell: pwsh
@@ -52,6 +56,10 @@ jobs:
           -p:PublishReadyToRun=true `
           -o ./linux-publish
 
+    - name: Copy OBS Files (Linux)
+      shell: pwsh
+      run: Copy-Item -Path "./OBS Files" -Destination "./linux-publish/OBS Files" -Recurse
+    
     - name: Zip Linux Release
       shell: pwsh
       run: |
