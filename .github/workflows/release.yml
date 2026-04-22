@@ -15,6 +15,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+          fetch-depth: 0
+          clean: true
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -23,6 +26,12 @@ jobs:
 
     - name: Install MAUI Workload
       run: dotnet workload install maui
+
+    - name: Build and Clean
+      run: |
+          dotnet clean MySolution.sln -c Release
+          dotnet restore MySolution.sln
+          dotnet build MySolution.sln -c Release --no-restore
 
     # --- BUILD & PUBLISH WINDOWS/WEB ---
     - name: Publish Web App (Windows)
