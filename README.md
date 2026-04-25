@@ -7,7 +7,18 @@ with [Challonge](https://challonge.com/) to display Match Information on scenes.
 This can be used for displaying Scenes on a stream to push up matches or to
 show bracket information on a screen in a better format for viewers.
 
+Player information, Table Information, Deck Lists and Scores can be controled through the Dashboard to display on Stream
+
 ---
+## Preconditions
+
+First import the OBS Scene Collection from the OBS Files folder and populate the missing files (Need to sor this later)
+
+Enable OOBSWebsocket Via OBS, either LocalHost or IP address of the OBS System can be used. Password from the OBSWebsocket is required to be used here.
+
+Get an API key from [Challonge Connect](https://connect.challonge.com) for settings, Username is also required.
+
+CSV can be used as well to display Blader Deck Information on stream. 
 
 ## TODOs
 
