@@ -7,7 +7,12 @@ with [Challonge](https://challonge.com/) to display Match Information on scenes.
 This can be used for displaying Scenes on a stream to push up matches or to
 show bracket information on a screen in a better format for viewers.
 
-Player information, Table Information, Deck Lists and Scores can be controled through the Dashboard to display on Stream
+Player information, Table Information, Deck Lists and Scores can be controled through the Dashboard to display on Stream.
+
+---
+# Release
+
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/astorec/obbx) [Latest Release](https://github.com/Astorec/OBBX/releases/latest)
 
 ---
 ## Preconditions
